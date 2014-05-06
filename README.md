@@ -22,9 +22,7 @@ That's all for now.
     $ ./paws_rs
     happy (happy happy) "happy happy" {happy “happy happy
     happy”}
-    ~[Symbol(~"happy"), Expression(~[Symbol(~"happy"), Symbol(~"happy")]), Symbo
-    l(~"happy happy"), Execution(~[Symbol(~"happy"), Symbol(~"happy happy\n    h
-    appy")])]
+    ~[Symbol(~"happy"), Expression(~[Symbol(~"happy"), Symbol(~"happy")]), Symbol(~"happy happy"), Execution(~[Symbol(~"happy"), Symbol(~"happy happy\nhappy")])]
 
     $ ./paws_rs
     this is
