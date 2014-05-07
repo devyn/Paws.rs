@@ -3,4 +3,7 @@
 
 #![feature(globs)]
 
+extern crate collections;
+
 pub mod cpaws;
+pub mod object;
