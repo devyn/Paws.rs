@@ -1,4 +1,3 @@
 .*.swp
 doc/
-*.rlib
-paws_rs
+build/

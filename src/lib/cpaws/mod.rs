@@ -3,8 +3,12 @@
 use std::str::Chars;
 use std::char::is_whitespace;
 
+#[cfg(test)]
+mod tests;
+
 /// Represents a cPaws node, which is either a symbol string, an expression of
 /// subnodes, or an execution of subnodes.
+#[deriving(Eq)]
 pub enum Node {
   Symbol(~str),
   Expression(~[Node]),

@@ -4,31 +4,30 @@
 
 ## Building
 
-    rustc src/lib/paws.rs
-    rustc -L . src/bin/paws_rs.rs
+    $ ./build.sh
 
-I'm still looking into the best way to automate this, since the library filename
-Rust generates is based on a hash and isn't fixed.
+At the moment, there are no configuration environment variables. I might switch
+to a Makefile in the future. Also, this always runs tests.
 
 ## Running
 
-    ./paws_rs
+    $ build/paws_rs
 
 Type in your input, hit EOF, and look at the output straight from the parser.
 That's all for now.
 
 ## Examples
 
-    $ ./paws_rs
+    $ build/paws_rs
     happy (happy happy) "happy happy" {happy “happy happy
     happy”}
     ~[Symbol(~"happy"), Expression(~[Symbol(~"happy"), Symbol(~"happy")]), Symbol(~"happy happy"), Execution(~[Symbol(~"happy"), Symbol(~"happy happy\nhappy")])]
 
-    $ ./paws_rs
+    $ build/paws_rs
     this is
     going to be an error{
     Parse error: <stdin>:3:1: expected '}' before end-of-input
 
-    $ ./paws_rs
+    $ build/paws_rs
     blah blah} error
     Parse error: <stdin>:1:10: unexpected terminator '}'
