@@ -7,3 +7,5 @@ extern crate collections;
 
 pub mod cpaws;
 pub mod object;
+pub mod script;
+pub mod machine;

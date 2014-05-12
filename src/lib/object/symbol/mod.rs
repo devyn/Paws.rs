@@ -1,8 +1,10 @@
 //! Paws symbols are atoms that are interned into a global table.
 
+use std::io::IoResult;
 use std::hash;
 use collections::treemap::TreeMap;
 use object::Object;
+use machine::Machine;
 
 #[cfg(test)]
 mod tests;
@@ -85,4 +87,7 @@ impl Symbol {
 }
 
 impl Object for Symbol {
+  fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
+    write!(writer, "Symbol[{}]", self.name(&machine.symbol_map))
+  }
 }

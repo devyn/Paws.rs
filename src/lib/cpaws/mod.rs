@@ -3,6 +3,11 @@
 use std::str::Chars;
 use std::char::is_whitespace;
 
+use script;
+use script::Script;
+use machine::Machine;
+use object::symbol;
+
 #[cfg(test)]
 mod tests;
 
@@ -201,4 +206,33 @@ fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> ~str {
   }
 
   string
+}
+
+/// Converts a vector of cPaws nodes into a Paws Script.
+pub fn build_script(machine: &mut Machine, nodes: &[Node]) -> Script {
+  Script(
+    nodes.iter().map(|node|
+      cpaws_node_to_script_node(machine, node)
+    ).collect()
+  )
+}
+
+/// Converts `cpaws::Node` -> `script::Node` for a given Machine.
+fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
+   -> script::Node {
+  match node {
+    &Symbol(ref string) =>
+      script::ObjectNode(
+        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map)),
+
+    &Expression(ref nodes) =>
+      script::ExpressionNode(
+        nodes.iter().map(|node|
+          cpaws_node_to_script_node(machine, node)
+        ).collect()
+      ),
+
+    &Execution(ref nodes) =>
+      unimplemented!()
+  }
 }
