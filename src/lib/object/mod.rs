@@ -1,12 +1,13 @@
 //! Paws objects, and a trait that they all share
 
+use std::any::Any;
 use std::io::IoResult;
 use machine::Machine;
 
 pub mod symbol;
 
 /// The interface that all Paws Objects must implement.
-pub trait Object {
+pub trait Object: Any {
   /// Formats a Paws Object for debugging purposes.
   ///
   /// **TODO:** `machine` should really be moved out of here if possible. It's
