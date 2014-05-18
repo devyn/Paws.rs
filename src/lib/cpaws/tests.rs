@@ -4,6 +4,7 @@ use script;
 use script::Script;
 use object::Object;
 use object::symbol;
+use object::execution;
 
 use std::any::*;
 
@@ -110,9 +111,7 @@ fn build_script_symbols() {
 
   let Script(script_nodes) = build_script(&mut machine, nodes);
 
-  if script_nodes.len() != 2 {
-    fail!("Expected a script with 2 nodes, got {}", script_nodes.len())
-  }
+  assert!(script_nodes.len() == 2);
 
   match &script_nodes[0] {
     &script::ObjectNode(ref object_ref) =>
@@ -136,9 +135,7 @@ fn build_script_expressions() {
 
   let Script(script_nodes) = build_script(&mut machine, nodes);
 
-  if script_nodes.len() != 2 {
-    fail!("Expected a script with 2 nodes, got {}", script_nodes.len());
-  }
+  assert!(script_nodes.len() == 2);
 
   match &script_nodes[0] {
     &script::ObjectNode(_) => (),
@@ -148,6 +145,8 @@ fn build_script_expressions() {
 
   match &script_nodes[1] {
     &script::ExpressionNode(ref subexp_nodes) => {
+      assert!(subexp_nodes.len() == 2);
+
       match &subexp_nodes[0] {
         &script::ObjectNode(_) => (),
 
@@ -165,7 +164,6 @@ fn build_script_expressions() {
   }
 }
 
-/*
 #[test]
 fn build_script_executions() {
   let mut machine = Machine::new();
@@ -173,10 +171,28 @@ fn build_script_executions() {
 
   let Script(script_nodes) = build_script(&mut machine, nodes);
 
+  assert!(script_nodes.len() == 1);
+
   match &script_nodes[0] {
-    &script::ObjectNode(_) => (),
+    &script::ObjectNode(ref object_ref) => {
+
+      let object_any: &Any = object_ref.deref().as_any();
+
+      assert!(object_any.is::<execution::Execution>());
+
+      let execution: &execution::Execution = object_any.as_ref().unwrap();
+
+      let &Script(ref sub_script_nodes) = execution.root();
+
+      assert!(sub_script_nodes.len() == 1)
+
+      match &sub_script_nodes[0] {
+        &script::ObjectNode(_) => (),
+
+        _ => fail!("Expected execution's first node to be an ObjectNode")
+      }
+    },
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 }
-*/

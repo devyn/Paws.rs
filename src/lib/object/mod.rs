@@ -6,6 +6,7 @@ use std::io::IoResult;
 use machine::Machine;
 
 pub mod symbol;
+pub mod execution;
 
 /// The interface that all Paws Objects must implement.
 pub trait Object {
@@ -21,4 +22,4 @@ pub trait Object {
 }
 
 /// A reference to an object.
-pub type ObjectRef = Rc<~Object>;
+pub type ObjectRef = Rc<~Object: 'static>;

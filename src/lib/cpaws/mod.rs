@@ -2,14 +2,14 @@
 
 use std::str::Chars;
 use std::char::is_whitespace;
+use std::rc::Rc;
 
 use script;
 use script::Script;
 use machine::Machine;
-use object::symbol;
-
 use object::Object;
-use std::rc::Rc;
+use object::symbol;
+use object::execution;
 
 #[cfg(test)]
 mod tests;
@@ -225,7 +225,7 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
    -> script::Node {
   match node {
     &Symbol(ref string) => {
-      let object: ~Object =
+      let object: ~Object:'static =
         ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map);
 
       script::ObjectNode(Rc::new(object))
@@ -238,7 +238,11 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
         ).collect()
       ),
 
-    &Execution(ref nodes) =>
-      unimplemented!()
+    &Execution(ref nodes) => {
+      let object: ~Object:'static =
+        ~execution::Execution::new(build_script(machine, nodes.as_slice()));
+
+      script::ObjectNode(Rc::new(object))
+    }
   }
 }
