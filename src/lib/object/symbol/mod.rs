@@ -57,6 +57,7 @@ impl Map<u64, ~str> for SymbolMap {
 }
 
 /// Holds a key to reference into a given `SymbolMap`.
+#[deriving(Eq, Show)]
 pub struct Symbol {
   key: u64,
   magic: &'static str
