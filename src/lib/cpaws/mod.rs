@@ -221,9 +221,12 @@ pub fn build_script(machine: &mut Machine, nodes: &[Node]) -> Script {
 fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
    -> script::Node {
   match node {
-    &Symbol(ref string) =>
-      script::ObjectNode(
-        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map)),
+    &Symbol(ref string) => {
+      let symbol = symbol::Symbol::new(string.as_slice(),
+        &mut machine.symbol_map);
+
+      script::ObjectNode(&symbol)
+    },
 
     &Expression(ref nodes) =>
       script::ExpressionNode(

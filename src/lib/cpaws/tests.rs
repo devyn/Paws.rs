@@ -6,7 +6,6 @@ use object::Object;
 use object::symbol;
 
 use std::any::*;
-use std::intrinsics::TypeId;
 
 fn test_parse_nodes(test_case: &str, expected_result: Result<~[Node], ~str>) {
   let result = parse_nodes(test_case, "<test_case>");
@@ -93,9 +92,15 @@ fn parse_nodes_unexpected_terminators() {
 }
 
 /// Tests the symbol within an Object reference.
-fn test_symbol_in_object(object: &~Object, string: &str, machine: &Machine) {
+fn test_symbol_in_object(object: &Object, string: &str, machine: &Machine) {
 
-  let symbol = (object as &Any).as_ref::<symbol::Symbol>().unwrap();
+  let object_any: &Any = object.as_any();
+
+  assert!(object_any.is::<symbol::Symbol>());
+
+  let symbol: &symbol::Symbol = object_any.as_ref().unwrap();
+
+  fail!("{:?}, {:?}", symbol, machine.symbol_map);
 
   assert!(symbol.name(&machine.symbol_map).as_slice() == string)
 }
@@ -112,14 +117,14 @@ fn build_script_symbols() {
   }
 
   match &script_nodes[0] {
-    &script::ObjectNode(ref object) =>
+    &script::ObjectNode(object) =>
       test_symbol_in_object(object, "hello", &machine),
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 
   match &script_nodes[1] {
-    &script::ObjectNode(ref object) =>
+    &script::ObjectNode(object) =>
       test_symbol_in_object(object, "world", &machine),
 
     _ => fail!("Expected second node to be an ObjectNode")
@@ -159,5 +164,19 @@ fn build_script_expressions() {
     },
 
     _ => fail!("Expected second node to be an ExpressionNode")
+  }
+}
+
+#[test]
+fn build_script_executions() {
+  let mut machine = Machine::new();
+  let     nodes   = ~[Execution(~[Symbol(~"a")])];
+
+  let Script(script_nodes) = build_script(&mut machine, nodes);
+
+  match &script_nodes[0] {
+    &script::ObjectNode(_) => (),
+
+    _ => fail!("Expected first node to be an ObjectNode")
   }
 }

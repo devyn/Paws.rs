@@ -7,12 +7,12 @@ use machine::Machine;
 
 /// A node can either be a single Object (`ObjectNode`) or a subexpression of
 /// multiple Nodes to be executed in sequence (`ExpressionNode`).
-pub enum Node {
-  ObjectNode(~Object),
-  ExpressionNode(~[Node])
+pub enum Node<'a> {
+  ObjectNode(&'a Object),
+  ExpressionNode(~[Node<'a>])
 }
 
-impl Node {
+impl<'a> Node<'a> {
   /// Formats a Node for debugging.
   pub fn fmt_paws(&self, writer: &mut Writer, machine: &Machine)
          -> IoResult<()> {
@@ -34,9 +34,9 @@ impl Node {
 
 /// Points to the root of a Script, which is an expression (in the same sense as
 /// `ExpressionNode`) of many Nodes.
-pub struct Script(~[Node]);
+pub struct Script<'a>(~[Node<'a>]);
 
-impl Script {
+impl<'a> Script<'a> {
   /// Formats a Script for debugging.
   pub fn fmt_paws(&self, writer: &mut Writer, machine: &Machine)
          -> IoResult<()> {
