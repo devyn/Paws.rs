@@ -16,6 +16,19 @@ pub trait Object {
   /// only required for looking symbols up in the machine's `SymbolMap`.
   fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()>;
 
+  /// Converts an Object trait object to an Any trait object.
+  ///
+  /// This is useful for attempting to convert an Object trait object into its
+  /// original type, for example, getting the Symbol within an Object, via
+  /// `as_ref()` on the resulting `&Any`.
+  ///
+  /// # Example
+  ///
+  ///     let maybe_symbol: Option<&Symbol> = object.as_any().as_ref();
+  ///     match maybe_symbol {
+  ///       Some(symbol) => println!("{}", symbol.name(&machine.symbol_map)),
+  ///       None         => fail!("expected Symbol")
+  ///     }
   fn as_any<'a>(&'a self) -> &'a Any {
     self as &Any
   }
