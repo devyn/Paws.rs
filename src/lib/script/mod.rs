@@ -2,13 +2,13 @@
 //! sequence within an Execution.
 
 use std::io::IoResult;
-use object::Object;
+use object::{Object,ObjectRef};
 use machine::Machine;
 
 /// A node can either be a single Object (`ObjectNode`) or a subexpression of
 /// multiple Nodes to be executed in sequence (`ExpressionNode`).
 pub enum Node {
-  ObjectNode(~Object),
+  ObjectNode(ObjectRef),
   ExpressionNode(~[Node])
 }
 
@@ -18,8 +18,8 @@ impl Node {
          -> IoResult<()> {
 
     match self {
-      &ObjectNode(ref object) =>
-        try!(object.fmt_paws(writer, machine)),
+      &ObjectNode(ref object_ref) =>
+        try!(object_ref.deref().fmt_paws(writer, machine)),
 
       &ExpressionNode(ref nodes) => {
         try!(writer.write_str("Expression { "));

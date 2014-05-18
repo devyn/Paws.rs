@@ -8,6 +8,9 @@ use script::Script;
 use machine::Machine;
 use object::symbol;
 
+use object::Object;
+use std::rc::Rc;
+
 #[cfg(test)]
 mod tests;
 
@@ -221,9 +224,12 @@ pub fn build_script(machine: &mut Machine, nodes: &[Node]) -> Script {
 fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
    -> script::Node {
   match node {
-    &Symbol(ref string) =>
-      script::ObjectNode(
-        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map)),
+    &Symbol(ref string) => {
+      let object: ~Object =
+        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map);
+
+      script::ObjectNode(Rc::new(object))
+    },
 
     &Expression(ref nodes) =>
       script::ExpressionNode(

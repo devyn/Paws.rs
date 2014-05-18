@@ -5,9 +5,7 @@ use script::Script;
 use object::Object;
 use object::symbol;
 
-use std::any::Any;
-use std::intrinsics::TypeId;
-use std::io::MemWriter;
+use std::any::*;
 
 fn test_parse_nodes(test_case: &str, expected_result: Result<~[Node], ~str>) {
   let result = parse_nodes(test_case, "<test_case>");
@@ -93,28 +91,16 @@ fn parse_nodes_unexpected_terminators() {
   );
 }
 
-/// A really, really ugly way to test the symbol within an Object reference.
-///
-/// FIXME: Need something better, especially since we're going to want to
-/// compare symbols in the future.
-fn test_symbol_in_object(object: &~Object, string: &str, machine: &Machine) {
+/// Tests the symbol within an Object reference.
+fn test_symbol_in_object(object: &Object, string: &str, machine: &Machine) {
 
-  // First make sure the types match up.
-  if object.get_type_id() == TypeId::of::<symbol::Symbol>() {
+  let object_any: &Any = object.as_any();
 
-    // Next, format both the test target and the case and compare the result of
-    // the formatting.
-    let mut test_writer = MemWriter::new();
-    let mut case_writer = MemWriter::new();
+  assert!(object_any.is::<symbol::Symbol>());
 
-    object.fmt_paws(&mut test_writer, machine).unwrap();
+  let symbol: &symbol::Symbol = object_any.as_ref().unwrap();
 
-    (write!(&mut case_writer, "Symbol[{}]", string)).unwrap();
-
-    assert!(test_writer.unwrap() == case_writer.unwrap())
-  } else {
-    fail!("Object is not a Symbol")
-  }
+  assert!(symbol.name(&machine.symbol_map).as_slice() == string)
 }
 
 #[test]
@@ -129,15 +115,15 @@ fn build_script_symbols() {
   }
 
   match &script_nodes[0] {
-    &script::ObjectNode(ref object) =>
-      test_symbol_in_object(object, "hello", &machine),
+    &script::ObjectNode(ref object_ref) =>
+      test_symbol_in_object(*object_ref.deref(), "hello", &machine),
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 
   match &script_nodes[1] {
-    &script::ObjectNode(ref object) =>
-      test_symbol_in_object(object, "world", &machine),
+    &script::ObjectNode(ref object_ref) =>
+      test_symbol_in_object(*object_ref.deref(), "world", &machine),
 
     _ => fail!("Expected second node to be an ObjectNode")
   }
@@ -178,3 +164,19 @@ fn build_script_expressions() {
     _ => fail!("Expected second node to be an ExpressionNode")
   }
 }
+
+/*
+#[test]
+fn build_script_executions() {
+  let mut machine = Machine::new();
+  let     nodes   = ~[Execution(~[Symbol(~"a")])];
+
+  let Script(script_nodes) = build_script(&mut machine, nodes);
+
+  match &script_nodes[0] {
+    &script::ObjectNode(_) => (),
+
+    _ => fail!("Expected first node to be an ObjectNode")
+  }
+}
+*/

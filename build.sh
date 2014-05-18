@@ -4,7 +4,7 @@ mkdir -p build
 cd build
 
 echo ">> Compiling libpaws-tests"
-rustc --test ../src/lib/paws.rs -o libpaws-tests || exit 1
+rustc -g --test ../src/lib/paws.rs -o libpaws-tests || exit 1
 
 echo ">> Running libpaws-tests"
 if ! ./libpaws-tests; then
