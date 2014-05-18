@@ -2,24 +2,24 @@
 //! sequence within an Execution.
 
 use std::io::IoResult;
-use object::Object;
+use object::{Object,ObjectRef};
 use machine::Machine;
 
 /// A node can either be a single Object (`ObjectNode`) or a subexpression of
 /// multiple Nodes to be executed in sequence (`ExpressionNode`).
-pub enum Node<'a> {
-  ObjectNode(&'a Object),
-  ExpressionNode(~[Node<'a>])
+pub enum Node {
+  ObjectNode(ObjectRef),
+  ExpressionNode(~[Node])
 }
 
-impl<'a> Node<'a> {
+impl Node {
   /// Formats a Node for debugging.
   pub fn fmt_paws(&self, writer: &mut Writer, machine: &Machine)
          -> IoResult<()> {
 
     match self {
-      &ObjectNode(ref object) =>
-        try!(object.fmt_paws(writer, machine)),
+      &ObjectNode(ref object_ref) =>
+        try!(object_ref.deref().fmt_paws(writer, machine)),
 
       &ExpressionNode(ref nodes) => {
         try!(writer.write_str("Expression { "));
@@ -34,9 +34,9 @@ impl<'a> Node<'a> {
 
 /// Points to the root of a Script, which is an expression (in the same sense as
 /// `ExpressionNode`) of many Nodes.
-pub struct Script<'a>(~[Node<'a>]);
+pub struct Script(~[Node]);
 
-impl<'a> Script<'a> {
+impl Script {
   /// Formats a Script for debugging.
   pub fn fmt_paws(&self, writer: &mut Writer, machine: &Machine)
          -> IoResult<()> {

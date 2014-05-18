@@ -1,9 +1,9 @@
 //! Paws objects, and a trait that they all share
 
+use std::any::*;
+use std::rc::Rc;
 use std::io::IoResult;
 use machine::Machine;
-
-use std::any::*;
 
 pub mod symbol;
 
@@ -19,3 +19,6 @@ pub trait Object {
     self as &Any
   }
 }
+
+/// A reference to an object.
+pub type ObjectRef = Rc<~Object>;

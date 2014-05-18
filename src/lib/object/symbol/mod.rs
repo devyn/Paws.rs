@@ -59,16 +59,14 @@ impl Map<u64, ~str> for SymbolMap {
 /// Holds a key to reference into a given `SymbolMap`.
 #[deriving(Eq, Show)]
 pub struct Symbol {
-  key: u64,
-  magic: &'static str
+  key: u64
 }
 
 impl Symbol {
   /// Creates a symbol by interning it in a `SymbolMap`.
   pub fn new(name: &str, symbol_map: &mut SymbolMap) -> Symbol {
     Symbol {
-      key: symbol_map.intern(name),
-      magic: "Hello"
+      key: symbol_map.intern(name)
     }
   }
 

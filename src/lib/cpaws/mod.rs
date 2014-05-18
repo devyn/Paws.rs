@@ -9,7 +9,7 @@ use machine::Machine;
 use object::symbol;
 
 use object::Object;
-use std::any::*;
+use std::rc::Rc;
 
 #[cfg(test)]
 mod tests;
@@ -225,16 +225,10 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
    -> script::Node {
   match node {
     &Symbol(ref string) => {
-      let symbol = symbol::Symbol::new(string.as_slice(),
-        &mut machine.symbol_map);
+      let object: ~Object =
+        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map);
 
-      let object: &Object = &symbol;
-
-      let symbol_unwrapped: &symbol::Symbol = object.as_any().as_ref().unwrap();
-
-      assert!(&symbol == symbol_unwrapped);
-
-      script::ObjectNode(&symbol)
+      script::ObjectNode(Rc::new(object))
     },
 
     &Expression(ref nodes) =>
