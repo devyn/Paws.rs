@@ -14,12 +14,14 @@ mod tests;
 /// All `Symbol`s' keys reference into a map and are created paired to a
 /// specific map, so it is important to keep track of the `SymbolMap` used to
 /// create a given `Symbol`.
-pub struct SymbolMap(TreeMap<u64, ~str>);
+pub struct SymbolMap {
+  map: TreeMap<u64, ~str>
+}
 
 impl SymbolMap {
   /// Creates an empty SymbolMap.
   pub fn new() -> SymbolMap {
-    SymbolMap(TreeMap::new())
+    SymbolMap { map: TreeMap::new() }
   }
 
   /// Hashes the symbol string as its `key` and returns it.
@@ -27,14 +29,12 @@ impl SymbolMap {
   /// Also creates an entry in the map associating the key with the symbol
   /// string if one doesn't already exist so that it can be looked up later.
   pub fn intern(&mut self, symbol: &str) -> u64 {
-    let SymbolMap(ref mut tree_map) = *self;
-
     let key = hash::hash(&symbol);
 
-    match tree_map.find(&key) {
+    match self.map.find(&key) {
       Some(_) => (),
       None    => {
-        tree_map.swap(key, symbol.to_owned());
+        self.map.swap(key, symbol.to_owned());
       }
     }
 
@@ -44,15 +44,13 @@ impl SymbolMap {
 
 impl Container for SymbolMap {
   fn len(&self) -> uint {
-    let SymbolMap(ref tree_map) = *self;
-    tree_map.len()
+    self.map.len()
   }
 }
 
 impl Map<u64, ~str> for SymbolMap {
   fn find<'a>(&'a self, key: &u64) -> Option<&'a ~str> {
-    let SymbolMap(ref tree_map) = *self;
-    tree_map.find(key)
+    self.map.find(key)
   }
 }
 
