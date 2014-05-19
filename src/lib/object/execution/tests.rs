@@ -25,7 +25,7 @@ fn execution_advance_flat() {
   let mut execution_ref_borrow = execution_ref.borrow_mut();
 
   let execution: &mut Execution =
-    execution_ref_borrow.as_mut_any().as_mut().unwrap();
+    execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
   let red   = ObjectRef::new(~machine.symbol("red"));
   let green = ObjectRef::new(~machine.symbol("green"));
@@ -74,7 +74,7 @@ fn execution_advance_empty_expression() {
   let mut execution_ref_borrow = execution_ref.borrow_mut();
 
   let execution: &mut Execution =
-    execution_ref_borrow.as_mut_any().as_mut().unwrap();
+    execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
   // {.()} advance(dummy) => Combination(dummy <- <this>)
   let combination =
@@ -105,7 +105,7 @@ fn execution_advance_nested_once() {
   let mut execution_ref_borrow = execution_ref.borrow_mut();
 
   let execution: &mut Execution =
-    execution_ref_borrow.as_mut_any().as_mut().unwrap();
+    execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
   // {.(red)} advance(green) => Combination(None <- red)
   // green {(red.)}
@@ -148,7 +148,7 @@ fn execution_advance_nested_twice() {
   let mut execution_ref_borrow = execution_ref.borrow_mut();
 
   let execution: &mut Execution =
-    execution_ref_borrow.as_mut_any().as_mut().unwrap();
+    execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
   // {.((red))} advance(green) => Combination(None <- red)
   // green {(.(red))}

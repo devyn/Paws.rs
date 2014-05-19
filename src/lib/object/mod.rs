@@ -35,7 +35,7 @@ pub trait Object {
   }
 
   /// Same as `as_any()` but for a mutable ref.
-  fn as_mut_any<'a>(&'a mut self) -> &'a mut Any {
+  fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
     self as &mut Any
   }
 }

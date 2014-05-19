@@ -37,7 +37,7 @@ fn main() {
           let mut execution_ref_borrow = execution_ref.borrow_mut();
 
           let execution: &mut Execution =
-            execution_ref_borrow.as_mut_any().as_mut().unwrap();
+            execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
           execution.fmt_paws(&mut stdout, &machine)
             .ok().expect("fmt_paws did not succeed!");
