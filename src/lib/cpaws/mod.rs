@@ -2,13 +2,11 @@
 
 use std::str::Chars;
 use std::char::is_whitespace;
-use std::rc::Rc;
 
 use script;
 use script::Script;
 use machine::Machine;
-use object::Object;
-use object::symbol;
+use object::{Object, ObjectRef};
 use object::execution;
 
 #[cfg(test)]
@@ -226,9 +224,9 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
   match node {
     &Symbol(ref string) => {
       let object: ~Object:'static =
-        ~symbol::Symbol::new(string.as_slice(), &mut machine.symbol_map);
+        ~machine.symbol(string.as_slice());
 
-      script::ObjectNode(Rc::new(object))
+      script::ObjectNode(ObjectRef::new(object))
     },
 
     &Expression(ref nodes) =>
@@ -242,7 +240,7 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
       let object: ~Object:'static =
         ~execution::Execution::new(build_script(machine, nodes.as_slice()));
 
-      script::ObjectNode(Rc::new(object))
+      script::ObjectNode(ObjectRef::new(object))
     }
   }
 }

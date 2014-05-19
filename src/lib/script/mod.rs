@@ -19,7 +19,7 @@ impl Node {
 
     match self {
       &ObjectNode(ref object_ref) =>
-        try!(object_ref.deref().fmt_paws(writer, machine)),
+        try!(object_ref.borrow().fmt_paws(writer, machine)),
 
       &ExpressionNode(ref nodes) => {
         try!(writer.write_str("Expression { "));

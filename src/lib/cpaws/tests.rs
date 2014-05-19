@@ -115,14 +115,14 @@ fn build_script_symbols() {
 
   match &script_nodes[0] {
     &script::ObjectNode(ref object_ref) =>
-      test_symbol_in_object(*object_ref.deref(), "hello", &machine),
+      test_symbol_in_object(*object_ref.borrow(), "hello", &machine),
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 
   match &script_nodes[1] {
     &script::ObjectNode(ref object_ref) =>
-      test_symbol_in_object(*object_ref.deref(), "world", &machine),
+      test_symbol_in_object(*object_ref.borrow(), "world", &machine),
 
     _ => fail!("Expected second node to be an ObjectNode")
   }
@@ -176,7 +176,9 @@ fn build_script_executions() {
   match &script_nodes[0] {
     &script::ObjectNode(ref object_ref) => {
 
-      let object_any: &Any = object_ref.deref().as_any();
+      let object: &Object = *object_ref.borrow();
+
+      let object_any: &Any = object.as_any();
 
       assert!(object_any.is::<execution::Execution>());
 
