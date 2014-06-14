@@ -1,3 +1,4 @@
+use object::*;
 use object::symbol::*;
 
 #[test]
@@ -28,4 +29,24 @@ fn compare_symbols() {
   assert!(symbol2.equals_symbol(&symbol1));
   assert!(!symbol1.equals_symbol(&symbol3));
   assert!(!symbol2.equals_symbol(&symbol3));
+}
+
+#[test]
+fn object_members() {
+  let mut symbol_map = SymbolMap::new();
+
+  let red   = ObjectRef::new(~Symbol::new("red",   &mut symbol_map));
+  let green = ObjectRef::new(~Symbol::new("green", &mut symbol_map));
+  let blue  = ObjectRef::new(~Symbol::new("blue",  &mut symbol_map));
+
+  let mut red_object = red.borrow_mut();
+
+  red_object.members_mut().push(Relationship::new(green.clone()));
+  red_object.members_mut().push(Relationship::new_child(blue.clone()));
+
+  assert!( red_object.members().get(0).deref() == &green);
+  assert!(!red_object.members().get(0).is_child());
+
+  assert!( red_object.members().get(1).deref() == &blue);
+  assert!( red_object.members().get(1).is_child());
 }

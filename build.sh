@@ -13,10 +13,10 @@ if ! ./libpaws-tests; then
 fi
 
 echo ">> Compiling libpaws"
-rustc ../src/lib/paws.rs || exit 1
+rustc -O ../src/lib/paws.rs || exit 1
 
 echo ">> Compiling paws_rs"
-rustc -L . ../src/bin/paws_rs.rs || exit 1
+rustc -O -L . ../src/bin/paws_rs.rs || exit 1
 
 echo ">> Generating documentation"
 rustdoc ../src/lib/paws.rs -o ../doc

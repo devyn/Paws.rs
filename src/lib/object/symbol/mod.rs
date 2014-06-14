@@ -3,7 +3,7 @@
 use std::io::IoResult;
 use std::hash;
 use collections::treemap::TreeMap;
-use object::Object;
+use object::{Object, Relationship};
 use machine::Machine;
 
 #[cfg(test)]
@@ -55,16 +55,17 @@ impl Map<u64, ~str> for SymbolMap {
 }
 
 /// Holds a key to reference into a given `SymbolMap`.
-#[deriving(Eq, Show)]
 pub struct Symbol {
-  key: u64
+  key:     u64,
+  members: Vec<Relationship>
 }
 
 impl Symbol {
   /// Creates a symbol by interning it in a `SymbolMap`.
   pub fn new(name: &str, symbol_map: &mut SymbolMap) -> Symbol {
     Symbol {
-      key: symbol_map.intern(name)
+      key:     symbol_map.intern(name),
+      members: Vec::new()
     }
   }
 
@@ -88,5 +89,13 @@ impl Symbol {
 impl Object for Symbol {
   fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
     write!(writer, "Symbol[{}]", self.name(&machine.symbol_map))
+  }
+
+  fn members<'a>(&'a self) -> &'a Vec<Relationship> {
+    &self.members
+  }
+
+  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship> {
+    &mut self.members
   }
 }

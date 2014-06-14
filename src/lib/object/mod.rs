@@ -38,9 +38,25 @@ pub trait Object {
   fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
     self as &mut Any
   }
+
+  /// A list of Relationships that make up the Object's members.
+  ///
+  /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
+  /// what Paws.rs strives to implement) should never assume anything about the
+  /// first element of the list and should instead start from the second element
+  /// unless specifically requested not to, as per the 'noughty' rule (see
+  /// spec).
+  fn members<'a>(&'a self) -> &'a Vec<Relationship>;
+
+  /// A mutable reference to the list of Relationships that make up the Object's
+  /// members.
+  ///
+  /// See `members` for more information.
+  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship>;
 }
 
 /// A reference to an object.
+#[deriving(Clone)]
 pub struct ObjectRef {
   reference: Rc<RefCell<~Object:'static>>
 }
@@ -67,8 +83,36 @@ impl Deref<RefCell<~Object:'static>> for ObjectRef {
   }
 }
 
-impl Clone for ObjectRef {
-  fn clone(&self) -> ObjectRef {
-    ObjectRef { reference: self.reference.clone() }
+/// A link to an object, to be referenced within an object's 'members' list.
+#[deriving(Clone)]
+pub struct Relationship {
+  to:       ObjectRef,
+  is_child: bool
+}
+
+impl Relationship {
+  /// Creates a new non-child relationship.
+  pub fn new(to: ObjectRef) -> Relationship {
+    Relationship { to: to, is_child: false }
+  }
+
+  /// Creates a new child relationship. See `is_child`.
+  pub fn new_child(to: ObjectRef) -> Relationship {
+    Relationship { to: to, is_child: true }
+  }
+
+  /// Indicates whether the link is a 'child relationship', i.e. an owned
+  /// reference. When an execution requests 'responsibility' over a given
+  /// object, it must also implicitly acquire responsibility over all of that
+  /// object's child relationships recursively (but not non-child
+  /// relationships).
+  pub fn is_child(&self) -> bool {
+    self.is_child
+  }
+}
+
+impl Deref<ObjectRef> for Relationship {
+  fn deref<'a>(&'a self) -> &'a ObjectRef {
+    &self.to
   }
 }

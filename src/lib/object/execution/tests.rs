@@ -1,7 +1,7 @@
 use object::execution::*;
 
 use machine::Machine;
-use object::{Object, ObjectRef};
+use object::*;
 use script::*;
 
 use std::any::*;
@@ -180,4 +180,25 @@ fn execution_advance_nested_twice() {
   }
 
   assert!(combination2.message == black);
+}
+
+#[test]
+fn object_members() {
+  let mut machine = Machine::new();
+
+  let execution_ref = ObjectRef::new(~Execution::new(Script(~[])));
+
+  let red   = ObjectRef::new(~machine.symbol("red"));
+  let green = ObjectRef::new(~machine.symbol("green"));
+
+  let mut execution_object = execution_ref.borrow_mut();
+
+  execution_object.members_mut().push(Relationship::new(red.clone()));
+  execution_object.members_mut().push(Relationship::new_child(green.clone()));
+
+  assert!( execution_object.members().get(0).deref() == &red);
+  assert!(!execution_object.members().get(0).is_child());
+
+  assert!( execution_object.members().get(1).deref() == &green);
+  assert!( execution_object.members().get(1).is_child());
 }

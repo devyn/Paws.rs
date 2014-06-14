@@ -12,7 +12,7 @@
 use std::io::IoResult;
 
 use script::*;
-use object::{Object, ObjectRef};
+use object::*;
 use machine::{Machine, Combination};
 
 #[cfg(test)]
@@ -22,7 +22,8 @@ pub struct Execution {
   root:     Script,
   pristine: bool,
   pc:       ~[uint],
-  stack:    ~[Option<ObjectRef>]
+  stack:    ~[Option<ObjectRef>],
+  members:  Vec<Relationship>
 }
 
 impl Execution {
@@ -32,7 +33,8 @@ impl Execution {
       root:     root,
       pristine: true,
       pc:       ~[],
-      stack:    ~[]
+      stack:    ~[],
+      members:  Vec::new()
     }
   }
 
@@ -206,5 +208,13 @@ impl Object for Execution {
     try!(write!(writer, "] \\}"));
 
     Ok(())
+  }
+
+  fn members<'a>(&'a self) -> &'a Vec<Relationship> {
+    &self.members
+  }
+
+  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship> {
+    &mut self.members
   }
 }
