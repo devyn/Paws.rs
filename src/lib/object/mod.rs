@@ -58,7 +58,7 @@ pub trait Object {
 /// A reference to an object.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  reference: Rc<RefCell<~Object:'static>>
+  priv reference: Rc<RefCell<~Object:'static>>
 }
 
 impl ObjectRef {
@@ -86,8 +86,8 @@ impl Deref<RefCell<~Object:'static>> for ObjectRef {
 /// A link to an object, to be referenced within an object's 'members' list.
 #[deriving(Clone)]
 pub struct Relationship {
-  to:       ObjectRef,
-  is_child: bool
+  priv to:       ObjectRef,
+  priv is_child: bool
 }
 
 impl Relationship {

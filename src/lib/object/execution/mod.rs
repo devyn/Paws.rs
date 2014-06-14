@@ -19,11 +19,11 @@ use machine::{Machine, Combination};
 mod tests;
 
 pub struct Execution {
-  root:     Script,
-  pristine: bool,
-  pc:       ~[uint],
-  stack:    ~[Option<ObjectRef>],
-  members:  Vec<Relationship>
+  priv root:     Script,
+  priv pristine: bool,
+  priv pc:       ~[uint],
+  priv stack:    ~[Option<ObjectRef>],
+  priv members:  Vec<Relationship>
 }
 
 impl Execution {

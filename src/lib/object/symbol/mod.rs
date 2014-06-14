@@ -15,7 +15,7 @@ mod tests;
 /// specific map, so it is important to keep track of the `SymbolMap` used to
 /// create a given `Symbol`.
 pub struct SymbolMap {
-  map: TreeMap<u64, ~str>
+  priv map: TreeMap<u64, ~str>
 }
 
 impl SymbolMap {
@@ -56,8 +56,8 @@ impl Map<u64, ~str> for SymbolMap {
 
 /// Holds a key to reference into a given `SymbolMap`.
 pub struct Symbol {
-  key:     u64,
-  members: Vec<Relationship>
+  priv key:     u64,
+  priv members: Vec<Relationship>
 }
 
 impl Symbol {
