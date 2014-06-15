@@ -39,7 +39,7 @@ fn object_members() {
   let green = ObjectRef::new(~Symbol::new("green", &mut symbol_map));
   let blue  = ObjectRef::new(~Symbol::new("blue",  &mut symbol_map));
 
-  let mut red_object = red.borrow_mut();
+  let mut red_object = red.write();
 
   red_object.members_mut().push(Relationship::new(green.clone()));
   red_object.members_mut().push(Relationship::new_child(blue.clone()));

@@ -4,6 +4,7 @@
 #![feature(globs)]
 
 extern crate collections;
+extern crate sync;
 
 pub mod cpaws;
 pub mod object;

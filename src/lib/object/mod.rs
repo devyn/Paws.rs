@@ -1,8 +1,7 @@
 //! Paws objects, and a trait that they all share
 
 use std::any::*;
-use std::cell::RefCell;
-use std::rc::Rc;
+use sync::{Arc, RWLock};
 use std::io::IoResult;
 use machine::Machine;
 
@@ -55,30 +54,33 @@ pub trait Object {
   fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship>;
 }
 
-/// A reference to an object.
+/// A reference to an object. Thread-safe.
+///
+/// Prefer immutable access (`read()`) unless necessary. Multiple tasks can read
+/// in parallel, but only one may write at a time.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  priv reference: Rc<RefCell<~Object:'static>>
+  priv reference: Arc<RWLock<~Object:Send+Share>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
-  pub fn new(object: ~Object:'static) -> ObjectRef {
-    ObjectRef { reference: Rc::new(RefCell::new(object)) }
+  pub fn new(object: ~Object:Send+Share) -> ObjectRef {
+    ObjectRef { reference: Arc::new(RWLock::new(object)) }
   }
 }
 
 impl Eq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.reference  as *RefCell<~Object:'static>) ==
-    (&*other.reference as *RefCell<~Object:'static>)
+    (&*self.reference  as *RWLock<~Object:Send+Share>) ==
+    (&*other.reference as *RWLock<~Object:Send+Share>)
   }
 }
 
 impl TotalEq for ObjectRef { }
 
-impl Deref<RefCell<~Object:'static>> for ObjectRef {
-  fn deref<'a>(&'a self) -> &'a RefCell<~Object:'static> {
+impl Deref<RWLock<~Object:Send+Share>> for ObjectRef {
+  fn deref<'a>(&'a self) -> &'a RWLock<~Object:Send+Share> {
     &*self.reference
   }
 }

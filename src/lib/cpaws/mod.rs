@@ -223,7 +223,7 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
    -> script::Node {
   match node {
     &Symbol(ref string) => {
-      let object: ~Object:'static =
+      let object: ~Object:Send+Share =
         ~machine.symbol(string.as_slice());
 
       script::ObjectNode(ObjectRef::new(object))
@@ -237,7 +237,7 @@ fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
       ),
 
     &Execution(ref nodes) => {
-      let object: ~Object:'static =
+      let object: ~Object:Send+Share =
         ~execution::Execution::new(build_script(machine, nodes.as_slice()));
 
       script::ObjectNode(ObjectRef::new(object))

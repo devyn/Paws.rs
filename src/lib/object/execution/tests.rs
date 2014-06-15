@@ -22,7 +22,7 @@ fn execution_advance_flat() {
         ).collect())
       ));
 
-  let mut execution_ref_borrow = execution_ref.borrow_mut();
+  let mut execution_ref_borrow = execution_ref.write();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -71,7 +71,7 @@ fn execution_advance_empty_expression() {
       ~Execution::new(
         Script(~[ExpressionNode(~[])])));
 
-  let mut execution_ref_borrow = execution_ref.borrow_mut();
+  let mut execution_ref_borrow = execution_ref.write();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -102,7 +102,7 @@ fn execution_advance_nested_once() {
       ~Execution::new(
         Script(~[ExpressionNode(~[ObjectNode(red.clone())])])));
 
-  let mut execution_ref_borrow = execution_ref.borrow_mut();
+  let mut execution_ref_borrow = execution_ref.write();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -145,7 +145,7 @@ fn execution_advance_nested_twice() {
           ExpressionNode(~[
             ExpressionNode(~[ObjectNode(red.clone())])])])));
 
-  let mut execution_ref_borrow = execution_ref.borrow_mut();
+  let mut execution_ref_borrow = execution_ref.write();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -191,7 +191,7 @@ fn object_members() {
   let red   = ObjectRef::new(~machine.symbol("red"));
   let green = ObjectRef::new(~machine.symbol("green"));
 
-  let mut execution_object = execution_ref.borrow_mut();
+  let mut execution_object = execution_ref.write();
 
   execution_object.members_mut().push(Relationship::new(red.clone()));
   execution_object.members_mut().push(Relationship::new_child(green.clone()));
