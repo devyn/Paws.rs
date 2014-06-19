@@ -38,20 +38,11 @@ pub trait Object {
     self as &mut Any
   }
 
-  /// A list of Relationships that make up the Object's members.
-  ///
-  /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
-  /// what Paws.rs strives to implement) should never assume anything about the
-  /// first element of the list and should instead start from the second element
-  /// unless specifically requested not to, as per the 'noughty' rule (see
-  /// spec).
-  fn members<'a>(&'a self) -> &'a Vec<Relationship>;
+  /// Get access to the Object's metadata, including members and such.
+  fn meta<'a>(&'a self) -> &'a Meta;
 
-  /// A mutable reference to the list of Relationships that make up the Object's
-  /// members.
-  ///
-  /// See `members` for more information.
-  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship>;
+  /// Get mutable access to the Object's metadata.
+  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
 }
 
 /// A reference to an object. Thread-safe.
@@ -116,5 +107,30 @@ impl Relationship {
 impl Deref<ObjectRef> for Relationship {
   fn deref<'a>(&'a self) -> &'a ObjectRef {
     &self.to
+  }
+}
+
+/// Object metadata -- this is universal for all objects, and required in order
+/// to implement the `Object` trait.
+#[deriving(Clone)]
+pub struct Meta {
+  /// A list of Relationships that make up the Object's members.
+  ///
+  /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
+  /// what Paws.rs strives to implement) should never assume anything about the
+  /// first element of the list and should instead start from the second element
+  /// unless specifically requested not to, as per the 'noughty' rule (see
+  /// spec).
+  pub members: Vec<Relationship>
+}
+
+impl Meta {
+  /// Helpful constructor with some sensible default values.
+  ///
+  /// * `members`: empty vec
+  pub fn new() -> Meta {
+    Meta {
+      members: Vec::new()
+    }
   }
 }

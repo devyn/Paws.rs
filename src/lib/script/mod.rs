@@ -7,6 +7,7 @@ use machine::Machine;
 
 /// A node can either be a single Object (`ObjectNode`) or a subexpression of
 /// multiple Nodes to be executed in sequence (`ExpressionNode`).
+#[deriving(Clone, Eq, TotalEq)]
 pub enum Node {
   ObjectNode(ObjectRef),
   ExpressionNode(~[Node])
@@ -34,6 +35,7 @@ impl Node {
 
 /// Points to the root of a Script, which is an expression (in the same sense as
 /// `ExpressionNode`) of many Nodes.
+#[deriving(Clone, Eq, TotalEq)]
 pub struct Script(~[Node]);
 
 impl Script {

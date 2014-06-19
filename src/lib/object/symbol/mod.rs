@@ -3,7 +3,7 @@
 use std::io::IoResult;
 use std::hash;
 use collections::treemap::TreeMap;
-use object::{Object, Relationship};
+use object::*;
 use machine::Machine;
 
 #[cfg(test)]
@@ -14,6 +14,7 @@ mod tests;
 /// All `Symbol`s' keys reference into a map and are created paired to a
 /// specific map, so it is important to keep track of the `SymbolMap` used to
 /// create a given `Symbol`.
+#[deriving(Clone)]
 pub struct SymbolMap {
   priv map: TreeMap<u64, ~str>
 }
@@ -55,17 +56,18 @@ impl Map<u64, ~str> for SymbolMap {
 }
 
 /// Holds a key to reference into a given `SymbolMap`.
+#[deriving(Clone)]
 pub struct Symbol {
-  priv key:     u64,
-  priv members: Vec<Relationship>
+  priv key:  u64,
+  priv meta: Meta
 }
 
 impl Symbol {
   /// Creates a symbol by interning it in a `SymbolMap`.
   pub fn new(name: &str, symbol_map: &mut SymbolMap) -> Symbol {
     Symbol {
-      key:     symbol_map.intern(name),
-      members: Vec::new()
+      key:  symbol_map.intern(name),
+      meta: Meta::new()
     }
   }
 
@@ -73,8 +75,8 @@ impl Symbol {
   ///
   /// Using a `SymbolMap` other than the one used to create the `Symbol` may
   /// result in a task failure, or worse, a mismatched name.
-  pub fn name<'a>(&self, symbol_map: &'a SymbolMap) -> &'a ~str {
-    symbol_map.find(&self.key).expect("symbol not in map")
+  pub fn name<'a>(&self, symbol_map: &'a SymbolMap) -> &'a str {
+    symbol_map.find(&self.key).expect("symbol not in map").as_slice()
   }
 
   /// Compares this symbol against another symbol by key only.
@@ -91,11 +93,11 @@ impl Object for Symbol {
     write!(writer, "Symbol[{}]", self.name(&machine.symbol_map))
   }
 
-  fn members<'a>(&'a self) -> &'a Vec<Relationship> {
-    &self.members
+  fn meta<'a>(&'a self) -> &'a Meta {
+    &self.meta
   }
 
-  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship> {
-    &mut self.members
+  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
+    &mut self.meta
   }
 }

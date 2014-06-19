@@ -18,12 +18,13 @@ use machine::{Machine, Combination};
 #[cfg(test)]
 mod tests;
 
+#[deriving(Clone)]
 pub struct Execution {
   priv root:     Script,
   priv pristine: bool,
   priv pc:       ~[uint],
   priv stack:    ~[Option<ObjectRef>],
-  priv members:  Vec<Relationship>
+  priv meta:     Meta
 }
 
 impl Execution {
@@ -34,7 +35,7 @@ impl Execution {
       pristine: true,
       pc:       ~[],
       stack:    ~[],
-      members:  Vec::new()
+      meta:     Meta::new()
     }
   }
 
@@ -210,11 +211,11 @@ impl Object for Execution {
     Ok(())
   }
 
-  fn members<'a>(&'a self) -> &'a Vec<Relationship> {
-    &self.members
+  fn meta<'a>(&'a self) -> &'a Meta {
+    &self.meta
   }
 
-  fn members_mut<'a>(&'a mut self) -> &'a mut Vec<Relationship> {
-    &mut self.members
+  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
+    &mut self.meta
   }
 }
