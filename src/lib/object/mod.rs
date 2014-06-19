@@ -5,8 +5,12 @@ use sync::{Arc, RWLock};
 use std::io::IoResult;
 use machine::Machine;
 
+pub mod empty;
 pub mod symbol;
 pub mod execution;
+
+#[cfg(test)]
+mod tests;
 
 /// The interface that all Paws Objects must implement.
 pub trait Object {
