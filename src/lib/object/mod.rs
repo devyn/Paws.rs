@@ -8,6 +8,7 @@ use machine::Machine;
 pub mod empty;
 pub mod symbol;
 pub mod execution;
+pub mod alien;
 
 #[cfg(test)]
 mod tests;
