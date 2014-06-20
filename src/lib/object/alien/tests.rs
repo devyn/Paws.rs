@@ -19,9 +19,9 @@ impl Routine for SymbolConcatenationRoutine {
   #[allow(unused_variable)]
   fn combine(&mut self, machine: &mut Machine, caller: ObjectRef,
              subject_meta: &mut Meta, message: ObjectRef) {
-    let message_borrow = message.read();
+    let message_borrow = message.lock();
 
-    match message_borrow.as_any().as_ref::<Symbol>() {
+    match message_borrow.deref().as_any().as_ref::<Symbol>() {
       Some(symbol) =>
         self.string = self.string.to_owned().append(
                         symbol.name(&machine.symbol_map)),

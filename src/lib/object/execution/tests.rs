@@ -22,7 +22,7 @@ fn execution_advance_flat() {
         ).collect())
       ));
 
-  let mut execution_ref_borrow = execution_ref.write();
+  let mut execution_ref_borrow = execution_ref.lock();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -71,7 +71,7 @@ fn execution_advance_empty_expression() {
       ~Execution::new(
         Script(~[ExpressionNode(~[])])));
 
-  let mut execution_ref_borrow = execution_ref.write();
+  let mut execution_ref_borrow = execution_ref.lock();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -102,7 +102,7 @@ fn execution_advance_nested_once() {
       ~Execution::new(
         Script(~[ExpressionNode(~[ObjectNode(red.clone())])])));
 
-  let mut execution_ref_borrow = execution_ref.write();
+  let mut execution_ref_borrow = execution_ref.lock();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -145,7 +145,7 @@ fn execution_advance_nested_twice() {
           ExpressionNode(~[
             ExpressionNode(~[ObjectNode(red.clone())])])])));
 
-  let mut execution_ref_borrow = execution_ref.write();
+  let mut execution_ref_borrow = execution_ref.lock();
 
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();

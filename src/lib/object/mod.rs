@@ -1,7 +1,7 @@
 //! Paws objects, and a trait that they all share
 
 use std::any::*;
-use sync::{Arc, RWLock};
+use sync::{Arc, Mutex};
 use std::io::IoResult;
 use machine::Machine;
 
@@ -56,27 +56,27 @@ pub trait Object {
 /// in parallel, but only one may write at a time.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  priv reference: Arc<RWLock<~Object:Send+Share>>
+  priv reference: Arc<Mutex<~Object:Send+Share>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
   pub fn new(object: ~Object:Send+Share) -> ObjectRef {
-    ObjectRef { reference: Arc::new(RWLock::new(object)) }
+    ObjectRef { reference: Arc::new(Mutex::new(object)) }
   }
 }
 
 impl Eq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.reference  as *RWLock<~Object:Send+Share>) ==
-    (&*other.reference as *RWLock<~Object:Send+Share>)
+    (&*self.reference  as *Mutex<~Object:Send+Share>) ==
+    (&*other.reference as *Mutex<~Object:Send+Share>)
   }
 }
 
 impl TotalEq for ObjectRef { }
 
-impl Deref<RWLock<~Object:Send+Share>> for ObjectRef {
-  fn deref<'a>(&'a self) -> &'a RWLock<~Object:Send+Share> {
+impl Deref<Mutex<~Object:Send+Share>> for ObjectRef {
+  fn deref<'a>(&'a self) -> &'a Mutex<~Object:Send+Share> {
     &*self.reference
   }
 }

@@ -193,7 +193,7 @@ impl Object for Execution {
     loop {
       match stack_iter.next() {
         Some(&Some(ref object_ref)) =>
-          try!(object_ref.read().fmt_paws(writer, machine)),
+          try!(object_ref.lock().fmt_paws(writer, machine)),
 
         Some(&None) =>
           try!(write!(writer, "NoObject")),
