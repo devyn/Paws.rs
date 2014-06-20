@@ -121,12 +121,16 @@ impl Deref<ObjectRef> for Relationship {
 pub struct Meta {
   /// A list of Relationships that make up the Object's members.
   ///
+  /// The vector is of `Option<Relationship>` to allow for holes -- when a
+  /// member is inserted at a position beyond the size of the vector, the gap is
+  /// filled with `None`s that will act as if the element does not exist.
+  ///
   /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
   /// what Paws.rs strives to implement) should never assume anything about the
   /// first element of the list and should instead start from the second element
   /// unless specifically requested not to, as per the 'noughty' rule (see
   /// spec).
-  pub members: Vec<Relationship>
+  pub members: Vec<Option<Relationship>>
 }
 
 impl Meta {

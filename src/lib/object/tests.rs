@@ -9,21 +9,18 @@ fn meta_member_relationships() {
   let mut target = Empty::new();
 
   target.meta_mut().members.push(
-    Relationship::new(object1.clone()));
+    Some(Relationship::new(object1.clone())));
 
   target.meta_mut().members.push(
-    Relationship::new_child(object2.clone()));
+    Some(Relationship::new_child(object2.clone())));
 
   let mut iter = target.meta().members.iter();
 
-  {
-    let relationship = iter.next().unwrap();
-    assert!(!relationship.is_child());
-    assert!( relationship.deref() == &object1);
-  }
-  {
-    let relationship = iter.next().unwrap();
-    assert!( relationship.is_child());
-    assert!( relationship.deref() == &object2);
-  }
+  let relationship = iter.next().unwrap().get_ref();
+  assert!(!relationship.is_child());
+  assert!( relationship.deref() == &object1);
+
+  let relationship = iter.next().unwrap().get_ref();
+  assert!( relationship.is_child());
+  assert!( relationship.deref() == &object2);
 }
