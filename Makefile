@@ -1,22 +1,24 @@
-BUILDDIR  = build
-RUSTC     = rustc
-RUSTDOC   = rustdoc
+BUILDDIR    = build
+RUSTC       = rustc
+RUSTDOC     = rustdoc
 
-LIBSRC    = src/lib/paws.rs
-LIBOUT    = ${BUILDDIR}/$(shell ${RUSTC} --crate-file-name ${LIBSRC})
-LIBFLAGS  = -O
+LIBSRC      = src/lib/paws.rs
+LIBOUT      = ${BUILDDIR}/$(shell ${RUSTC} --crate-file-name ${LIBSRC})
+LIBDEPINFO  = $(dir ${LIBOUT})tmp/$(notdir ${LIBOUT})-deps.mk
+LIBFLAGS    = -O
 
-TESTSRC   = src/lib/paws.rs
-TESTOUT   = ${BUILDDIR}/libpaws-tests
-TESTFLAGS = -g
+TESTSRC     = ${LIBSRC}
+TESTOUT     = ${BUILDDIR}/libpaws-tests
+TESTDEPINFO = $(dir ${TESTOUT})tmp/$(notdir ${TESTOUT})-deps.mk
+TESTFLAGS   = -g
 
-BINSRC    = src/bin/paws_rs.rs
-BINOUT    = ${BUILDDIR}/paws_rs
-BINFLAGS  = -O
+BINSRC      = src/bin/paws_rs.rs
+BINOUT      = ${BUILDDIR}/paws_rs
+BINDEPINFO  = $(dir ${BINOUT})tmp/$(notdir ${BINOUT})-deps.mk
+BINFLAGS    = -O
 
-DOCSRC    = src/lib/paws.rs
-DOCOUT    = ${BUILDDIR}/doc/paws/index.html
-DOCDIR    = ${BUILDDIR}/doc
+DOCOUT      = ${BUILDDIR}/doc/paws/index.html
+DOCDIR      = ${BUILDDIR}/doc
 
 all: ${LIBOUT} ${BINOUT} ${DOCOUT}
 
@@ -29,18 +31,26 @@ test: ${TESTOUT}
 doc: ${DOCOUT}
 
 ${LIBOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} ${LIBFLAGS} ${LIBSRC} -o ${LIBOUT}
+	${RUSTC} ${LIBFLAGS} --dep-info ${LIBDEPINFO} \
+	  ${LIBSRC} -o ${LIBOUT}
 
-${TESTOUT}: ${TESTSRC} | ${BUILDDIR}
-	${RUSTC} ${TESTFLAGS} --test ${TESTSRC} -o ${TESTOUT}
+${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
+	${RUSTC} ${TESTFLAGS} --test --dep-info ${TESTDEPINFO} \
+	  ${TESTSRC} -o ${TESTOUT}
 
 ${BINOUT}: ${BINSRC} ${LIBOUT} | ${BUILDDIR}
-	${RUSTC} ${BINFLAGS} -L ${BUILDDIR} ${BINSRC} -o ${BINOUT}
+	${RUSTC} ${BINFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
+	  ${BINSRC} -o ${BINOUT}
 
-${DOCOUT}: ${DOCSRC} | ${BUILDDIR}
-	${RUSTDOC} -w html ${DOCSRC} -o ${DOCDIR}
+${DOCOUT}: ${LIBSRC} ${LIBOUT} | ${BUILDDIR}
+	${RUSTDOC} -w html ${LIBSRC} -o ${DOCDIR}
 
 ${BUILDDIR}:
 	mkdir -p ${BUILDDIR}
+	mkdir -p ${BUILDDIR}/tmp
+
+-include ${LIBDEPINFO}
+-include ${BINDEPINFO}
+-include ${TESTDEPINFO}
 
 .PHONY: all clean test doc
