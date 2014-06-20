@@ -34,7 +34,7 @@ fn main() {
         let mut maybe_combination: Option<Combination>;
 
         {
-          let mut execution_ref_borrow = execution_ref.write();
+          let mut execution_ref_borrow = execution_ref.lock();
 
           let execution: &mut Execution =
             execution_ref_borrow.as_any_mut().as_mut().unwrap();
@@ -55,18 +55,18 @@ fn main() {
             match combination.subject {
               None => stdout.write_str("#<locals>").unwrap(),
               Some(ref subject_ref) => {
-                let subject_borrow = subject_ref.read();
+                let subject_borrow = subject_ref.lock();
 
-                subject_borrow.fmt_paws(&mut stdout, &machine)
+                subject_borrow.deref().fmt_paws(&mut stdout, &machine)
                   .ok().expect("fmt_paws did not succeed!");
               }
             }
 
             stdout.write_str(" <- ").unwrap();
 
-            let message_borrow = combination.message.read();
+            let message_borrow = combination.message.lock();
 
-            message_borrow.fmt_paws(&mut stdout, &machine)
+            message_borrow.deref().fmt_paws(&mut stdout, &machine)
               .ok().expect("fmt_paws did not succeed!");
 
             stdout.write_str(")").unwrap();
