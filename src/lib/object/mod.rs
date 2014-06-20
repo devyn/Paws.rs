@@ -48,6 +48,28 @@ pub trait Object {
 
   /// Get mutable access to the Object's metadata.
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
+
+  /// Implements the 'default receiver' of an Object.
+  ///
+  /// Called by the Reactor if the Object does not have a different 'receiver'
+  /// explicitly set within its metadata.
+  ///
+  /// The default implementation of this function resumes the caller with the
+  /// result of interpreting the Object's members as key-value pairs and
+  /// grabbing the value associated with the message as the key. If the key
+  /// could not be found, the caller is **not** resumed.
+  ///
+  /// This implementation is probably suitable for most non-execution-like
+  /// Object. Execution-like Objects obviously will want to override this
+  /// function.
+  fn combine(&mut self, machine: &mut Machine, caller: ObjectRef,
+             message: ObjectRef) {
+    match self.meta().lookup_member(message) {
+      Some(object_ref) =>
+        machine.stage(caller, object_ref, None),
+      None => ()
+    }
+  }
 }
 
 /// A reference to an object. Thread-safe.
@@ -107,10 +129,9 @@ impl Relationship {
   pub fn is_child(&self) -> bool {
     self.is_child
   }
-}
 
-impl Deref<ObjectRef> for Relationship {
-  fn deref<'a>(&'a self) -> &'a ObjectRef {
+  /// The object this relationship points to.
+  pub fn to<'a>(&'a self) -> &'a ObjectRef {
     &self.to
   }
 }
@@ -141,5 +162,42 @@ impl Meta {
     Meta {
       members: Vec::new()
     }
+  }
+
+  /// Searches for a given key within `members` according to Paws' "nuclear"
+  /// association-list semantics.
+  ///
+  /// # Example
+  ///
+  /// Using JavaScript-like syntax to represent members, ignoring other
+  /// properties of the objects:
+  ///
+  ///     [, [, hello, world], [, foo, bar], [, hello, goodbye]]
+  ///
+  /// When looking up `hello`:
+  ///
+  /// * Iteration is done in reverse order; key and value are second and
+  ///   third elements respectively, so result is `Some(goodbye)`
+  fn lookup_member(&self, key: ObjectRef) -> Option<ObjectRef> {
+    for maybe_relationship in self.members.tail().iter().rev() {
+      match maybe_relationship {
+        &Some(ref relationship) => {
+          let object  = relationship.to().lock();
+          let members = &object.deref().meta().members;
+
+          if members.len() >= 3 {
+            match (members.get(1), members.get(2)) {
+              (&Some(ref rel_key), &Some(ref rel_value)) =>
+                if rel_key.to() == &key {
+                  return Some(rel_value.to().clone())
+                },
+              _ => ()
+            }
+          }
+        },
+        _ => ()
+      }
+    }
+    None
   }
 }

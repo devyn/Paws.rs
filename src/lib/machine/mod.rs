@@ -23,6 +23,13 @@ impl Machine {
   pub fn symbol(&mut self, string: &str) -> Symbol {
     Symbol::new(string, &mut self.symbol_map)
   }
+
+  /// **TODO**. Adds an entry to the Machine's queue, making it available for a
+  /// reactor to pull and execute.
+  pub fn stage(&mut self, execution: ObjectRef, response: ObjectRef,
+               mask: Option<MaskRequest>) {
+    unimplemented!()
+  }
 }
 
 /// Describes a Combination of a `message` against a `subject`.
@@ -33,3 +40,8 @@ pub struct Combination {
   pub subject: Option<ObjectRef>,
   pub message: ObjectRef
 }
+
+/// **TODO**. A request for a mask.
+///
+/// No idea what this is going to look like yet.
+pub struct MaskRequest;

@@ -32,17 +32,6 @@ impl Alien {
       meta:    Meta::new()
     }
   }
-
-  /// Handle combination of this Alien (as the subject) with a given caller and
-  /// message, in the context of a Machine.
-  ///
-  /// This really just hands execution off to the Alien's internal Routine, so
-  /// see the docs for the `combine()` function there for the nitty-gritty
-  /// details.
-  pub fn combine(&mut self, machine: &mut Machine, caller: ObjectRef,
-                 message: ObjectRef) {
-    self.routine.combine(machine, caller, &mut self.meta, message)
-  }
 }
 
 impl Object for Alien {
@@ -62,6 +51,11 @@ impl Object for Alien {
 
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
     &mut self.meta
+  }
+
+  fn combine(&mut self, machine: &mut Machine, caller: ObjectRef,
+                 message: ObjectRef) {
+    self.routine.combine(machine, caller, &mut self.meta, message)
   }
 }
 

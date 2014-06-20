@@ -18,9 +18,9 @@ fn meta_member_relationships() {
 
   let relationship = iter.next().unwrap().get_ref();
   assert!(!relationship.is_child());
-  assert!( relationship.deref() == &object1);
+  assert!( relationship.to() == &object1);
 
   let relationship = iter.next().unwrap().get_ref();
   assert!( relationship.is_child());
-  assert!( relationship.deref() == &object2);
+  assert!( relationship.to() == &object2);
 }
