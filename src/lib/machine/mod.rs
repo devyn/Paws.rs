@@ -26,6 +26,7 @@ impl Machine {
 
   /// **TODO**. Adds an entry to the Machine's queue, making it available for a
   /// reactor to pull and execute.
+  #[allow(unused_variable)]
   pub fn stage(&mut self, execution: ObjectRef, response: ObjectRef,
                mask: Option<MaskRequest>) {
     unimplemented!()
@@ -44,4 +45,19 @@ pub struct Combination {
 /// **TODO**. A request for a mask.
 ///
 /// No idea what this is going to look like yet.
+#[deriving(Clone, Eq, TotalEq)]
 pub struct MaskRequest;
+
+/// **WIP**. An operation for a Reactor to react.
+#[deriving(Clone, Eq, TotalEq)]
+pub enum Operation {
+  Stage(StageParams)
+}
+
+/// Parameters for a Stage operation.
+#[deriving(Clone, Eq, TotalEq)]
+pub struct StageParams {
+  pub execution: ObjectRef,
+  pub response:  ObjectRef,
+  pub mask:      Option<MaskRequest>
+}

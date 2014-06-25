@@ -3,7 +3,7 @@
 use std::any::*;
 use sync::{Arc, Mutex};
 use std::io::IoResult;
-use machine::Machine;
+use machine::{Machine, Operation, Stage, StageParams};
 
 pub mod empty;
 pub mod symbol;
@@ -49,25 +49,31 @@ pub trait Object {
   /// Get mutable access to the Object's metadata.
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
 
-  /// Implements the 'default receiver' of an Object.
+  /// Returns a NativeReceiver that implements the 'default receiver' of an
+  /// Object type.
   ///
-  /// Called by the Reactor if the Object does not have a different 'receiver'
-  /// explicitly set within its metadata.
+  /// The default implementation is a receiver that simply calls
+  /// `lookup_member()` on the subject's Meta with the message as its argument.
+  /// If the lookup succeeds, the caller is staged with the result as the
+  /// response. If the lookup does not succeed, the caller is not re-staged.
   ///
-  /// The default implementation of this function resumes the caller with the
-  /// result of interpreting the Object's members as key-value pairs and
-  /// grabbing the value associated with the message as the key. If the key
-  /// could not be found, the caller is **not** resumed.
-  ///
-  /// This implementation is probably suitable for most non-execution-like
-  /// Object. Execution-like Objects obviously will want to override this
-  /// function.
-  fn combine(&mut self, machine: &mut Machine, caller: ObjectRef,
-             message: ObjectRef) {
-    match self.meta().lookup_member(message) {
-      Some(object_ref) =>
-        machine.stage(caller, object_ref, None),
-      None => ()
+  /// See the spec for rationale.
+  #[allow(unused_variable)]
+  fn default_receiver<Self>() -> NativeReceiver {
+    |machine: &mut Machine, params: Params| -> Reaction {
+      let subject = params.subject.lock();
+
+      match subject.deref().meta()
+                   .lookup_member(params.message.clone()) {
+        Some(value) =>
+          React(Stage(StageParams {
+            execution: params.caller.clone(),
+            response:  value,
+            mask:      None
+          })),
+        None =>
+          Yield
+      }
     }
   }
 }
@@ -104,7 +110,7 @@ impl Deref<Mutex<~Object:Send+Share>> for ObjectRef {
 }
 
 /// A link to an object, to be referenced within an object's 'members' list.
-#[deriving(Clone)]
+#[deriving(Clone, Eq, TotalEq)]
 pub struct Relationship {
   priv to:       ObjectRef,
   priv is_child: bool
@@ -200,4 +206,35 @@ impl Meta {
     }
     None
   }
+}
+
+/// The lowest level handler for a combination.
+pub type NativeReceiver = 'static |&mut Machine, Params| -> Reaction;
+
+/// Parameters to be given to a receiver.
+///
+/// If the receiver were non-native, it would be sent these items as an empty
+/// object with the members `[, caller, subject, message]`, so this structure
+/// represents that without the overhead of constructing an object.
+#[deriving(Clone, Eq, TotalEq)]
+pub struct Params {
+  pub caller: ObjectRef,
+  pub subject: ObjectRef,
+  pub message: ObjectRef
+}
+
+/// Indicates the result of a native combination operation.
+#[deriving(Clone, Eq, TotalEq)]
+pub enum Reaction {
+  /// Indicates that the reactor should perform the given operation immediately,
+  /// if possible.
+  ///
+  /// If the operation can not be performed immediately, it should be appended
+  /// to the Machine's queue.
+  React(Operation),
+
+  /// Indicates that there is nothing that should be reacted immediately as a
+  /// result of the receiver, so the reactor should wait on the Machine's queue
+  /// instead.
+  Yield
 }

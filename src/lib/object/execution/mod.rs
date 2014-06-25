@@ -13,7 +13,7 @@ use std::io::IoResult;
 
 use script::*;
 use object::*;
-use machine::{Machine, Combination};
+use machine::{Machine, Combination, Stage, StageParams};
 
 #[cfg(test)]
 mod tests;
@@ -217,5 +217,16 @@ impl Object for Execution {
 
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
     &mut self.meta
+  }
+
+  #[allow(unused_variable)]
+  fn default_receiver<Execution>() -> NativeReceiver {
+    |machine: &mut Machine, params: Params| -> Reaction {
+      React(Stage(StageParams {
+        execution: params.subject.clone(),
+        response:  params.message.clone(),
+        mask:      None
+      }))
+    }
   }
 }
