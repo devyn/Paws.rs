@@ -1,6 +1,7 @@
 //! Aliens are similar to Executions but with native, opaque functionality.
 
 use object::*;
+use object::execution::stage_receiver;
 use machine::*;
 
 use std::any::*;
@@ -21,8 +22,8 @@ mod tests;
 /// Most operations which handle Executions should be capable of transparently
 /// handling Aliens as well.
 pub struct Alien {
-  priv routine: Routine,
-  priv data:    ~Any:'static,
+  pub  routine: Routine,
+  pub  data:    ~Any:'static,
   priv meta:    Meta
 }
 
@@ -34,12 +35,6 @@ impl Alien {
       data:    data,
       meta:    Meta::new()
     }
-  }
-
-  /// Give the Alien a response; similar to Execution advancement.
-  pub fn advance(&mut self, machine: &mut Machine,
-                 response: ObjectRef) -> Reaction {
-    (self.routine)(machine, self, response)
   }
 }
 
@@ -57,18 +52,14 @@ impl Object for Alien {
     &mut self.meta
   }
 
-  #[allow(unused_variable)]
-  fn default_receiver<Alien>() -> NativeReceiver {
-    |machine: &mut Machine, params: Params| -> Reaction {
-      React(Stage(StageParams {
-        execution: params.subject.clone(),
-        response:  params.message.clone(),
-        mask:      None
-      }))
-    }
+  fn default_receiver(&self) -> NativeReceiver {
+    stage_receiver
   }
 }
 
 /// A function that implements the logic behind an Alien.
-pub type Routine = fn(machine: &mut Machine, alien: &mut Alien,
-                      response: ObjectRef) -> Reaction;
+pub type Routine = fn <'a>(
+                       alien: TypedRefGuard<'a, Alien>,
+                       machine: &mut Machine,
+                       response: ObjectRef)
+                       -> Reaction;

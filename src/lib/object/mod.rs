@@ -1,7 +1,7 @@
 //! Paws objects, and a trait that they all share
 
 use std::any::*;
-use sync::{Arc, Mutex};
+use sync::{Arc, Mutex, MutexGuard};
 use std::io::IoResult;
 use machine::{Machine, Operation, Stage, StageParams};
 
@@ -50,38 +50,45 @@ pub trait Object {
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
 
   /// Returns a NativeReceiver that implements the 'default receiver' of an
-  /// Object type.
+  /// Object type. The `self` reference given should be ignored; it is purely
+  /// for typing through a trait object. Additionally, an Object implementation
+  /// should probably have another way to access this receiver function.
   ///
-  /// The default implementation is a receiver that simply calls
-  /// `lookup_member()` on the subject's Meta with the message as its argument.
-  /// If the lookup succeeds, the caller is staged with the result as the
-  /// response. If the lookup does not succeed, the caller is not re-staged.
+  /// The default implementation is provided by `lookup_receiver`.
   ///
   /// See the spec for rationale.
-  #[allow(unused_variable)]
-  fn default_receiver<Self>() -> NativeReceiver {
-    |machine: &mut Machine, params: Params| -> Reaction {
-      let subject = params.subject.lock();
-
-      match subject.deref().meta()
-                   .lookup_member(params.message.clone()) {
-        Some(value) =>
-          React(Stage(StageParams {
-            execution: params.caller.clone(),
-            response:  value,
-            mask:      None
-          })),
-        None =>
-          Yield
-      }
-    }
+  fn default_receiver(&self) -> NativeReceiver {
+    lookup_receiver
   }
 }
 
-/// A reference to an object. Thread-safe.
+/// A receiver that simply calls `lookup_member()` on the subject's Meta with
+/// the message as its argument.
 ///
-/// Prefer immutable access (`read()`) unless necessary. Multiple tasks can read
-/// in parallel, but only one may write at a time.
+/// If the lookup succeeds, the caller is staged with the result as the
+/// response. If the lookup does not succeed, the caller is not re-staged.
+///
+/// This receiver is the default receiver for all Object types, unless
+/// overridden.
+#[allow(unused_variable)]
+pub fn lookup_receiver(machine: &mut Machine, params: Params) -> Reaction {
+  let subject = params.subject.lock();
+
+  match subject.deref().meta()
+               .lookup_member(params.message.clone()) {
+    Some(value) =>
+      React(Stage(StageParams {
+        execution: params.caller.clone(),
+        response:  value,
+        mask:      None
+      })),
+    None =>
+      Yield
+  }
+}
+
+/// A reference to an object. Use `lock()` to gain access to the `Object`
+/// underneath.
 #[deriving(Clone)]
 pub struct ObjectRef {
   priv reference: Arc<Mutex<~Object:Send+Share>>
@@ -91,6 +98,17 @@ impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
   pub fn new(object: ~Object:Send+Share) -> ObjectRef {
     ObjectRef { reference: Arc::new(Mutex::new(object)) }
+  }
+
+  /// Obtain exclusive access to the Object this reference points to.
+  ///
+  /// The Object can be accessed via the returned RAII guard. The returned guard
+  /// also contains a reference to this ObjectRef.
+  pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
+    ObjectRefGuard {
+      object_ref: self,
+      guard:      self.reference.lock()
+    }
   }
 }
 
@@ -103,9 +121,99 @@ impl Eq for ObjectRef {
 
 impl TotalEq for ObjectRef { }
 
-impl Deref<Mutex<~Object:Send+Share>> for ObjectRef {
-  fn deref<'a>(&'a self) -> &'a Mutex<~Object:Send+Share> {
-    &*self.reference
+/// Represents exclusive access to an object.
+///
+/// Exclusive access is dropped when this guard is dropped.
+pub struct ObjectRefGuard<'a> {
+  priv object_ref: &'a ObjectRef,
+  priv guard:      MutexGuard<'a, ~Object:Send+Share>
+}
+
+impl<'a> ObjectRefGuard<'a> {
+  /// Unlocks the guard, returning a reference to the ObjectRef that was used to
+  /// create the guard originally.
+  ///
+  /// The guard is consumed in an attempt to prevent unintentional deadlocks due
+  /// to double-locking within the task.
+  pub fn unlock(self) -> &'a ObjectRef {
+    self.object_ref
+  }
+
+  /// Compares the internal ObjectRef to another reference without unlocking.
+  ///
+  /// This can be used to check whether you already possess the guard to a given
+  /// ObjectRef.
+  pub fn ref_eq(&self, other: &ObjectRef) -> bool {
+    self.object_ref == other
+  }
+
+  /// Attempts to convert an untyped `ObjectRefGuard` to a `TypedRefGuard` of a
+  /// specific type.
+  ///
+  /// Consumes this guard and wraps into a `TypedRefGuard` if the type of the
+  /// Object within matched the requested type, otherwise, returns this guard
+  /// to be used again.
+  pub fn try_cast<T:'static>(self)
+                  -> Result<TypedRefGuard<'a, T>, ObjectRefGuard<'a>> {
+    if self.deref().as_any().is::<T>() {
+      Ok(TypedRefGuard { object_ref_guard: self })
+    } else {
+      Err(self)
+    }
+  }
+}
+
+impl<'a> Deref<~Object:Send+Share> for ObjectRefGuard<'a> {
+  fn deref<'a>(&'a self) -> &'a ~Object:Send+Share {
+    self.guard.deref()
+  }
+}
+
+impl<'a> DerefMut<~Object:Send+Share> for ObjectRefGuard<'a> {
+  fn deref_mut<'a>(&'a mut self) -> &'a mut ~Object:Send+Share {
+    self.guard.deref_mut()
+  }
+}
+
+/// Allows pre-typechecked guards to be marked with their types to remove
+/// redundant boilerplate when passing `ObjectRefGuard`s around.
+pub struct TypedRefGuard<'a, T> {
+  priv object_ref_guard: ObjectRefGuard<'a>
+}
+
+impl<'a, T> TypedRefGuard<'a, T> {
+  /// Unlocks the guard, returning a reference to the ObjectRef that was used to
+  /// create the guard originally.
+  ///
+  /// The guard is consumed in an attempt to prevent unintentional deadlocks due
+  /// to double-locking within the task.
+  pub fn unlock(self) -> &'a ObjectRef {
+    self.object_ref_guard.unlock()
+  }
+
+  /// Compares the internal ObjectRef to another reference without unlocking.
+  ///
+  /// This can be used to check whether you already possess the guard to a given
+  /// ObjectRef.
+  pub fn ref_eq(&self, other: &ObjectRef) -> bool {
+    self.object_ref_guard.ref_eq(other)
+  }
+
+  /// Converts this typed guard back into a regular, untyped `ObjectRefGuard`.
+  pub fn into_untyped(self) -> ObjectRefGuard<'a> {
+    self.object_ref_guard
+  }
+}
+
+impl<'a, T:'static> Deref<T> for TypedRefGuard<'a, T> {
+  fn deref<'a>(&'a self) -> &'a T {
+    self.object_ref_guard.deref().as_any().as_ref::<T>().unwrap()
+  }
+}
+
+impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
+  fn deref_mut<'a>(&'a mut self) -> &'a mut T {
+    self.object_ref_guard.deref_mut().as_any_mut().as_mut::<T>().unwrap()
   }
 }
 
@@ -209,7 +317,7 @@ impl Meta {
 }
 
 /// The lowest level handler for a combination.
-pub type NativeReceiver = 'static |&mut Machine, Params| -> Reaction;
+pub type NativeReceiver = fn (&mut Machine, Params) -> Reaction;
 
 /// Parameters to be given to a receiver.
 ///

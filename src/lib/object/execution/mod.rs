@@ -219,14 +219,16 @@ impl Object for Execution {
     &mut self.meta
   }
 
-  #[allow(unused_variable)]
-  fn default_receiver<Execution>() -> NativeReceiver {
-    |machine: &mut Machine, params: Params| -> Reaction {
-      React(Stage(StageParams {
-        execution: params.subject.clone(),
-        response:  params.message.clone(),
-        mask:      None
-      }))
-    }
+  fn default_receiver(&self) -> NativeReceiver {
+    stage_receiver
   }
+}
+
+#[allow(unused_variable)]
+pub fn stage_receiver(machine: &mut Machine, params: Params) -> Reaction {
+  React(Stage(StageParams {
+    execution: params.subject.clone(),
+    response:  params.message.clone(),
+    mask:      None
+  }))
 }
