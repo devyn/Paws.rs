@@ -4,8 +4,6 @@ use machine::Machine;
 use object::*;
 use script::*;
 
-use std::any::*;
-
 #[test]
 fn execution_advance_flat() {
   let mut machine = Machine::new();
@@ -22,10 +20,7 @@ fn execution_advance_flat() {
         ).collect())
       ));
 
-  let mut execution_ref_borrow = execution_ref.lock();
-
-  let execution: &mut Execution =
-    execution_ref_borrow.as_any_mut().as_mut().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
   let red   = machine.symbol("red");
   let green = machine.symbol("green");
@@ -70,10 +65,7 @@ fn execution_advance_empty_expression() {
       ~Execution::new(
         Script(~[ExpressionNode(~[])])));
 
-  let mut execution_ref_borrow = execution_ref.lock();
-
-  let execution: &mut Execution =
-    execution_ref_borrow.as_any_mut().as_mut().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
   // {.()} advance(dummy) => Combination(dummy <- <this>)
   let combination =
@@ -101,10 +93,7 @@ fn execution_advance_nested_once() {
       ~Execution::new(
         Script(~[ExpressionNode(~[ObjectNode(red.clone())])])));
 
-  let mut execution_ref_borrow = execution_ref.lock();
-
-  let execution: &mut Execution =
-    execution_ref_borrow.as_any_mut().as_mut().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
   // {.(red)} advance(green) => Combination(None <- red)
   // green {(red.)}
@@ -144,10 +133,7 @@ fn execution_advance_nested_twice() {
           ExpressionNode(~[
             ExpressionNode(~[ObjectNode(red.clone())])])])));
 
-  let mut execution_ref_borrow = execution_ref.lock();
-
-  let execution: &mut Execution =
-    execution_ref_borrow.as_any_mut().as_mut().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
   // {.((red))} advance(green) => Combination(None <- red)
   // green {(.(red))}

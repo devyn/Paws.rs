@@ -2,10 +2,7 @@ use cpaws::*;
 use machine::Machine;
 use script;
 use script::Script;
-use object::Object;
 use object::execution;
-
-use std::any::*;
 
 fn test_parse_nodes(test_case: &str, expected_result: Result<~[Node], ~str>) {
   let result = parse_nodes(test_case, "<test_case>");
@@ -161,26 +158,22 @@ fn build_script_executions() {
   assert!(script_nodes.len() == 1);
 
   match &script_nodes[0] {
-    &script::ObjectNode(ref object_ref) => {
+    &script::ObjectNode(ref object_ref) =>
+      match object_ref.lock().try_cast::<execution::Execution>() {
+        Ok(execution) => {
+          let &Script(ref sub_script_nodes) = execution.deref().root();
 
-      let object: &Object = *object_ref.lock();
+          assert!(sub_script_nodes.len() == 1)
 
-      let object_any: &Any = object.as_any();
+          match &sub_script_nodes[0] {
+            &script::ObjectNode(_) => (),
 
-      assert!(object_any.is::<execution::Execution>());
+            _ => fail!("Expected execution's first node to be an ObjectNode")
+          }
+        },
 
-      let execution: &execution::Execution = object_any.as_ref().unwrap();
-
-      let &Script(ref sub_script_nodes) = execution.root();
-
-      assert!(sub_script_nodes.len() == 1)
-
-      match &sub_script_nodes[0] {
-        &script::ObjectNode(_) => (),
-
-        _ => fail!("Expected execution's first node to be an ObjectNode")
-      }
-    },
+        Err(_) => fail!("Expected first node to point at an Execution")
+      },
 
     _ => fail!("Expected first node to be an ObjectNode")
   }

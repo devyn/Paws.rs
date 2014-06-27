@@ -2,20 +2,19 @@ BUILDDIR    = build
 RUSTC       = rustc
 RUSTDOC     = rustdoc
 
+RUSTFLAGS   = -O
+
 LIBSRC      = src/lib/paws.rs
 LIBOUT      = ${BUILDDIR}/$(shell ${RUSTC} --crate-file-name ${LIBSRC})
 LIBDEPINFO  = $(dir ${LIBOUT})tmp/$(notdir ${LIBOUT})-deps.mk
-LIBFLAGS    = -O
 
 TESTSRC     = ${LIBSRC}
 TESTOUT     = ${BUILDDIR}/libpaws-tests
 TESTDEPINFO = $(dir ${TESTOUT})tmp/$(notdir ${TESTOUT})-deps.mk
-TESTFLAGS   = -g
 
 BINSRC      = src/bin/paws_rs.rs
 BINOUT      = ${BUILDDIR}/paws_rs
 BINDEPINFO  = $(dir ${BINOUT})tmp/$(notdir ${BINOUT})-deps.mk
-BINFLAGS    = -O
 
 DOCOUT      = ${BUILDDIR}/doc/paws/index.html
 DOCDIR      = ${BUILDDIR}/doc
@@ -31,15 +30,15 @@ test: ${TESTOUT}
 doc: ${DOCOUT}
 
 ${LIBOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} ${LIBFLAGS} --dep-info ${LIBDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
 	  ${LIBSRC} -o ${LIBOUT}
 
 ${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} ${TESTFLAGS} --test --dep-info ${TESTDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} --test --dep-info ${TESTDEPINFO} \
 	  ${TESTSRC} -o ${TESTOUT}
 
 ${BINOUT}: ${BINSRC} ${LIBOUT} | ${BUILDDIR}
-	${RUSTC} ${BINFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
 	  ${BINSRC} -o ${BINOUT}
 
 ${DOCOUT}: ${LIBSRC} ${LIBOUT} | ${BUILDDIR}
