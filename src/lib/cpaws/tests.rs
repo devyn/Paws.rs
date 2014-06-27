@@ -3,7 +3,6 @@ use machine::Machine;
 use script;
 use script::Script;
 use object::Object;
-use object::symbol;
 use object::execution;
 
 use std::any::*;
@@ -92,18 +91,6 @@ fn parse_nodes_unexpected_terminators() {
   );
 }
 
-/// Tests the symbol within an Object reference.
-fn test_symbol_in_object(object: &Object, string: &str, machine: &Machine) {
-
-  let object_any: &Any = object.as_any();
-
-  assert!(object_any.is::<symbol::Symbol>());
-
-  let symbol: &symbol::Symbol = object_any.as_ref().unwrap();
-
-  assert!(symbol.name(&machine.symbol_map).as_slice() == string)
-}
-
 #[test]
 fn build_script_symbols() {
   let mut machine = Machine::new();
@@ -115,14 +102,14 @@ fn build_script_symbols() {
 
   match &script_nodes[0] {
     &script::ObjectNode(ref object_ref) =>
-      test_symbol_in_object(*object_ref.lock(), "hello", &machine),
+      assert!(object_ref == &machine.symbol("hello")),
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 
   match &script_nodes[1] {
     &script::ObjectNode(ref object_ref) =>
-      test_symbol_in_object(*object_ref.lock(), "world", &machine),
+      assert!(object_ref == &machine.symbol("world")),
 
     _ => fail!("Expected second node to be an ObjectNode")
   }

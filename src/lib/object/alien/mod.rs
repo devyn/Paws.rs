@@ -39,8 +39,7 @@ impl Alien {
 }
 
 impl Object for Alien {
-  #[allow(unused_variable)]
-  fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
+  fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     write!(writer, "Alien")
   }
 

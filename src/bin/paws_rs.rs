@@ -19,7 +19,7 @@ fn main() {
     Ok(nodes) => {
       let mut machine = Machine::new();
 
-      let test_symbol = ObjectRef::new(~machine.symbol("test"));
+      let test_symbol = machine.symbol("test");
 
       let script = cpaws::build_script(&mut machine, nodes);
 
@@ -39,7 +39,7 @@ fn main() {
           let execution: &mut Execution =
             execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
-          execution.fmt_paws(&mut stdout, &machine)
+          execution.fmt_paws(&mut stdout)
             .ok().expect("fmt_paws did not succeed!");
 
           stdout.write_str("\n\n").unwrap();
@@ -57,7 +57,7 @@ fn main() {
               Some(ref subject_ref) => {
                 let subject_borrow = subject_ref.lock();
 
-                subject_borrow.deref().fmt_paws(&mut stdout, &machine)
+                subject_borrow.deref().fmt_paws(&mut stdout)
                   .ok().expect("fmt_paws did not succeed!");
               }
             }
@@ -66,7 +66,7 @@ fn main() {
 
             let message_borrow = combination.message.lock();
 
-            message_borrow.deref().fmt_paws(&mut stdout, &machine)
+            message_borrow.deref().fmt_paws(&mut stdout)
               .ok().expect("fmt_paws did not succeed!");
 
             stdout.write_str(")").unwrap();

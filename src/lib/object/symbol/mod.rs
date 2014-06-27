@@ -1,96 +1,79 @@
 //! Paws symbols are atoms that are interned into a global table.
 
-use std::io::IoResult;
-use std::hash;
-use collections::treemap::TreeMap;
 use object::*;
-use machine::Machine;
+
+use std::io::IoResult;
+use collections::hashmap::HashMap;
 
 #[cfg(test)]
 mod tests;
 
-/// Holds a map of 64-bit keys to symbol names.
+/// Maps strings to Symbol objects.
 ///
-/// All `Symbol`s' keys reference into a map and are created paired to a
-/// specific map, so it is important to keep track of the `SymbolMap` used to
-/// create a given `Symbol`.
+/// The most common usage is as part of a Machine.
 #[deriving(Clone)]
 pub struct SymbolMap {
-  priv map: TreeMap<u64, ~str>
+  priv map: HashMap<~str, ObjectRef>
 }
 
 impl SymbolMap {
   /// Creates an empty SymbolMap.
   pub fn new() -> SymbolMap {
-    SymbolMap { map: TreeMap::new() }
+    SymbolMap { map: HashMap::new() }
   }
 
-  /// Hashes the symbol string as its `key` and returns it.
+  /// Returns a reference to the Symbol whose name matches the given string.
   ///
-  /// Also creates an entry in the map associating the key with the symbol
-  /// string if one doesn't already exist so that it can be looked up later.
-  pub fn intern(&mut self, symbol: &str) -> u64 {
-    let key = hash::hash(&symbol);
+  /// Creates the Symbol and adds it to the map if it doesn't exist. This is an
+  /// intentionally leaky and irreversable operation.
+  pub fn intern(&mut self, string: &str) -> ObjectRef {
+    self.map.find_equiv(&string).map(|symbol| {
 
-    match self.map.find(&key) {
-      Some(_) => (),
-      None    => {
-        self.map.swap(key, symbol.to_owned());
-      }
-    }
+      symbol.clone()
 
-    key
+    }).unwrap_or_else(|| {
+
+      let symbol = ObjectRef::new(~Symbol {
+                     name: string.to_owned(),
+                     meta: Meta::new()
+                   });
+
+      self.map.insert(string.to_owned(), symbol.clone());
+
+      symbol
+
+    })
   }
 }
 
 impl Container for SymbolMap {
   fn len(&self) -> uint {
+    // In case you want to know how many symbols have been interned.
     self.map.len()
   }
 }
 
-impl Map<u64, ~str> for SymbolMap {
-  fn find<'a>(&'a self, key: &u64) -> Option<&'a ~str> {
-    self.map.find(key)
-  }
-}
-
-/// Holds a key to reference into a given `SymbolMap`.
+/// An object containing a string that should be comparable-by-pointer with
+/// other `Symbol`s from the same `SymbolMap`.
+///
+/// There is no constructor (i.e. `new()`) function, because they are intended
+/// to be created on-demand by a `SymbolMap`.
 #[deriving(Clone)]
 pub struct Symbol {
-  priv key:  u64,
+  priv name: ~str,
   priv meta: Meta
 }
 
 impl Symbol {
-  /// Creates a symbol by interning it in a `SymbolMap`.
-  pub fn new(name: &str, symbol_map: &mut SymbolMap) -> Symbol {
-    Symbol {
-      key:  symbol_map.intern(name),
-      meta: Meta::new()
-    }
-  }
-
-  /// Looks up the name of the symbol in the given `SymbolMap`.
-  ///
-  /// Using a `SymbolMap` other than the one used to create the `Symbol` may
-  /// result in a task failure, or worse, a mismatched name.
-  pub fn name<'a>(&self, symbol_map: &'a SymbolMap) -> &'a str {
-    symbol_map.find(&self.key).expect("symbol not in map").as_slice()
-  }
-
-  /// Compares this symbol against another symbol by key only.
-  ///
-  /// Take care to ensure the `Symbol`s are from the same `SymbolMap`,
-  /// otherwise, the result is undefined.
-  pub fn equals_symbol(&self, other: &Symbol) -> bool {
-    self.key == other.key
+  /// The string that the symbol represents.
+  pub fn name<'a>(&'a self) -> &'a str {
+    self.name.as_slice()
   }
 }
 
 impl Object for Symbol {
-  fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
-    write!(writer, "Symbol[{}]", self.name(&machine.symbol_map))
+  fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
+    write!(writer, "Symbol[{}]", self.name())
   }
 
   fn meta<'a>(&'a self) -> &'a Meta {

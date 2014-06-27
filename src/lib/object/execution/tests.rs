@@ -11,7 +11,7 @@ fn execution_advance_flat() {
   let mut machine = Machine::new();
 
   let symbols: ~[ObjectRef] = ["hello", "world"].iter().map(|&string|
-    ObjectRef::new(~machine.symbol(string))
+    machine.symbol(string)
   ).collect();
 
   let execution_ref =
@@ -27,9 +27,9 @@ fn execution_advance_flat() {
   let execution: &mut Execution =
     execution_ref_borrow.as_any_mut().as_mut().unwrap();
 
-  let red   = ObjectRef::new(~machine.symbol("red"));
-  let green = ObjectRef::new(~machine.symbol("green"));
-  let blue  = ObjectRef::new(~machine.symbol("blue"));
+  let red   = machine.symbol("red");
+  let green = machine.symbol("green");
+  let blue  = machine.symbol("blue");
 
   // {.hello world} advance(red)   => Combination(red <- hello)
   let combination0 =
@@ -63,8 +63,7 @@ fn execution_advance_flat() {
 fn execution_advance_empty_expression() {
   let mut machine = Machine::new();
 
-  let dummy_symbol =
-    ObjectRef::new(~machine.symbol("dummy"));
+  let dummy_symbol = machine.symbol("dummy");
 
   let execution_ref =
     ObjectRef::new(
@@ -93,9 +92,9 @@ fn execution_advance_empty_expression() {
 fn execution_advance_nested_once() {
   let mut machine = Machine::new();
 
-  let red   = ObjectRef::new(~machine.symbol("red"));
-  let green = ObjectRef::new(~machine.symbol("green"));
-  let blue  = ObjectRef::new(~machine.symbol("blue"));
+  let red   = machine.symbol("red");
+  let green = machine.symbol("green");
+  let blue  = machine.symbol("blue");
 
   let execution_ref =
     ObjectRef::new(
@@ -133,10 +132,10 @@ fn execution_advance_nested_once() {
 fn execution_advance_nested_twice() {
   let mut machine = Machine::new();
 
-  let red   = ObjectRef::new(~machine.symbol("red"));
-  let green = ObjectRef::new(~machine.symbol("green"));
-  let blue  = ObjectRef::new(~machine.symbol("blue"));
-  let black = ObjectRef::new(~machine.symbol("black"));
+  let red   = machine.symbol("red");
+  let green = machine.symbol("green");
+  let blue  = machine.symbol("blue");
+  let black = machine.symbol("black");
 
   let execution_ref =
     ObjectRef::new(

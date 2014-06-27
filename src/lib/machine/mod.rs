@@ -1,14 +1,16 @@
 //! Paws machines and reactor implementation.
 
 use object::ObjectRef;
-use object::symbol::{Symbol, SymbolMap};
+use object::symbol::SymbolMap;
 
-/// Paws Machines are currently mostly unimplemented.
+/// A machine represents the context of execution and reactors for realization
+/// of Paws operations.
 ///
-/// They currently contain a SymbolMap for Symbols to be looked up against and
-/// created with.
+/// Currently mostly unimplemented. At the moment they only
+/// contain a SymbolMap for creating Symbols to be used within the context of
+/// the machine.
 pub struct Machine {
-  pub symbol_map: SymbolMap
+  priv symbol_map: SymbolMap
 }
 
 impl Machine {
@@ -19,9 +21,10 @@ impl Machine {
     }
   }
 
-  /// Interns a symbol on the Machine's `symbol_map`.
-  pub fn symbol(&mut self, string: &str) -> Symbol {
-    Symbol::new(string, &mut self.symbol_map)
+  /// Gets a reference to the Symbol representing the given string within the
+  /// context of this machine.
+  pub fn symbol(&mut self, string: &str) -> ObjectRef {
+    self.symbol_map.intern(string)
   }
 
   /// **TODO**. Adds an entry to the Machine's queue, making it available for a

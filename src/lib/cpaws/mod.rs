@@ -219,15 +219,12 @@ pub fn build_script(machine: &mut Machine, nodes: &[Node]) -> Script {
 }
 
 /// Converts `cpaws::Node` -> `script::Node` for a given Machine.
-fn cpaws_node_to_script_node(machine: &mut Machine, node: &Node)
-   -> script::Node {
+fn cpaws_node_to_script_node(machine: &mut Machine,
+                             node:    &Node)
+                             -> script::Node {
   match node {
-    &Symbol(ref string) => {
-      let object: ~Object:Send+Share =
-        ~machine.symbol(string.as_slice());
-
-      script::ObjectNode(ObjectRef::new(object))
-    },
+    &Symbol(ref string) =>
+      script::ObjectNode(machine.symbol(string.as_slice())),
 
     &Expression(ref nodes) =>
       script::ExpressionNode(

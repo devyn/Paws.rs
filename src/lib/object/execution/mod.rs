@@ -180,10 +180,10 @@ fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
 }
 
 impl Object for Execution {
-  fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
+  fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     try!(write!(writer, "Execution \\{ root: "));
 
-    try!(self.root.fmt_paws(writer, machine));
+    try!(self.root.fmt_paws(writer));
 
     try!(write!(writer, ", pristine: {}, pc: {}, stack: [",
       self.pristine, self.pc));
@@ -193,7 +193,7 @@ impl Object for Execution {
     loop {
       match stack_iter.next() {
         Some(&Some(ref object_ref)) =>
-          try!(object_ref.lock().fmt_paws(writer, machine)),
+          try!(object_ref.lock().fmt_paws(writer)),
 
         Some(&None) =>
           try!(write!(writer, "NoObject")),

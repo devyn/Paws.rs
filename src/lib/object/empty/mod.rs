@@ -1,7 +1,6 @@
 //! Empties contain Object metadata and nothing more.
 
 use object::*;
-use machine::Machine;
 
 use std::io::IoResult;
 
@@ -24,8 +23,7 @@ impl Empty {
 }
 
 impl Object for Empty {
-  #[allow(unused_variable)]
-  fn fmt_paws(&self, writer: &mut Writer, machine: &Machine) -> IoResult<()> {
+  fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     write!(writer, "Empty")
   }
 

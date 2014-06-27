@@ -17,6 +17,7 @@ mod simple {
     Alien::new(routine, ~~"")
   }
 
+  #[allow(unused_variable)]
   fn routine<'a>(
                  mut alien: TypedRefGuard<'a, Alien>,
                  machine:   &mut Machine,
@@ -26,7 +27,7 @@ mod simple {
     match response.lock().try_cast::<Symbol>() {
       Ok(symbol) =>
         alien.data.as_mut::<~str>().unwrap()
-          .push_str(symbol.deref().name(&machine.symbol_map)),
+          .push_str(symbol.deref().name()),
       Err(_) => ()
     }
 
@@ -40,8 +41,8 @@ fn simple_alien() {
 
   let alien_ref = ObjectRef::new(~simple::new_alien());
 
-  let hello = ObjectRef::new(~machine.symbol("Hello, "));
-  let world = ObjectRef::new(~machine.symbol("world!"));
+  let hello = machine.symbol("Hello, ");
+  let world = machine.symbol("world!");
 
   {
     let alien = alien_ref.lock().try_cast::<Alien>().unwrap();
