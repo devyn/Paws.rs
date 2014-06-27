@@ -23,13 +23,13 @@ mod tests;
 /// handling Aliens as well.
 pub struct Alien {
   pub  routine: Routine,
-  pub  data:    ~Any:'static,
+  pub  data:    ~Any:'static+Send+Share,
   priv meta:    Meta
 }
 
 impl Alien {
   /// Construct an Alien around a given Routine.
-  pub fn new(routine: Routine, data: ~Any:'static) -> Alien {
+  pub fn new(routine: Routine, data: ~Any:'static+Send+Share) -> Alien {
     Alien {
       routine: routine,
       data:    data,
