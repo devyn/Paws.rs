@@ -1,7 +1,7 @@
 //! Paws machines and reactor implementation.
 
 use object::ObjectRef;
-use object::symbol::SymbolMap;
+use object::symbol::{Symbol, SymbolMap};
 
 /// A machine represents the context of execution and reactors for realization
 /// of Paws operations.
@@ -21,10 +21,11 @@ impl Machine {
     }
   }
 
-  /// Gets a reference to the Symbol representing the given string within the
-  /// context of this machine.
+  /// Creates a Symbol object representing the given string within the context
+  /// of this machine.
   pub fn symbol(&mut self, string: &str) -> ObjectRef {
-    self.symbol_map.intern(string)
+    ObjectRef::new_symbol(
+      ~Symbol::new(self.symbol_map.intern(string)))
   }
 
   /// **TODO**. Adds an entry to the Machine's queue, making it available for a

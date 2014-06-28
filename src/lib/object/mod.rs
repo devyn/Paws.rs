@@ -72,7 +72,7 @@ pub fn lookup_receiver(machine: &mut Machine, params: Params) -> Reaction {
   let subject = params.subject.lock();
 
   match subject.deref().meta()
-               .lookup_member(params.message.clone()) {
+               .lookup_member(&params.message) {
     Some(value) =>
       React(Stage(StageParams {
         execution: params.caller.clone(),
@@ -88,13 +88,30 @@ pub fn lookup_receiver(machine: &mut Machine, params: Params) -> Reaction {
 /// underneath.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  priv reference: Arc<Mutex<~Object:Send+Share>>
+  priv reference:  Arc<Mutex<~Object:Send+Share>>,
+  priv symbol_ref: Option<Arc<~str>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
   pub fn new(object: ~Object:Send+Share) -> ObjectRef {
-    ObjectRef { reference: Arc::new(Mutex::new(object)) }
+    ObjectRef {
+      reference:  Arc::new(Mutex::new(object)),
+      symbol_ref: None
+    }
+  }
+
+  /// Boxes a Symbol into a Symbol reference.
+  ///
+  /// This is a special case to allow for lockless symbol comparison
+  /// (`ObjectRef::eq_as_symbol()`). All Symbol-containing ObjectRefs are
+  /// assumed to have been created this way; behavior is undefined if they are
+  /// created with `ObjectRef::new()` instead.
+  pub fn new_symbol(symbol: ~symbol::Symbol) -> ObjectRef {
+    ObjectRef {
+      symbol_ref: Some(symbol.name_ptr()),
+      reference:  Arc::new(Mutex::new(symbol as ~Object:Send+Share))
+    }
   }
 
   /// Obtain exclusive access to the Object this reference points to.
@@ -106,6 +123,23 @@ impl ObjectRef {
       object_ref: self,
       guard:      self.reference.lock()
     }
+  }
+
+  /// Returns true if both `ObjectRef`s are Symbol references that point at the
+  /// same Symbol string.
+  pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
+    match (&self.symbol_ref, &other.symbol_ref) {
+      (&Some(ref a), &Some(ref b)) =>
+        (&**a as *~str) == (&**b as *~str),
+
+      _ => false
+    }
+  }
+
+  /// If this `ObjectRef` is a Symbol reference, returns a reference to the
+  /// pointer to the Symbol's name.
+  pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<~str>> {
+    self.symbol_ref.as_ref()
   }
 }
 
@@ -289,7 +323,7 @@ impl Meta {
   ///
   /// * Iteration is done in reverse order; key and value are second and
   ///   third elements respectively, so result is `Some(goodbye)`
-  fn lookup_member(&self, key: ObjectRef) -> Option<ObjectRef> {
+  fn lookup_member(&self, key: &ObjectRef) -> Option<ObjectRef> {
     for maybe_relationship in self.members.tail().iter().rev() {
       match maybe_relationship {
         &Some(ref relationship) => {
@@ -299,7 +333,8 @@ impl Meta {
           if members.len() >= 3 {
             match (members.get(1), members.get(2)) {
               (&Some(ref rel_key), &Some(ref rel_value)) =>
-                if rel_key.to() == &key {
+                if rel_key.to().eq_as_symbol(key) ||
+                   rel_key.to() == key {
                   return Some(rel_value.to().clone())
                 },
               _ => ()

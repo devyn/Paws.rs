@@ -99,14 +99,14 @@ fn build_script_symbols() {
 
   match &script_nodes[0] {
     &script::ObjectNode(ref object_ref) =>
-      assert!(object_ref == &machine.symbol("hello")),
+      assert!(object_ref.eq_as_symbol(&machine.symbol("hello"))),
 
     _ => fail!("Expected first node to be an ObjectNode")
   }
 
   match &script_nodes[1] {
     &script::ObjectNode(ref object_ref) =>
-      assert!(object_ref == &machine.symbol("world")),
+      assert!(object_ref.eq_as_symbol(&machine.symbol("world"))),
 
     _ => fail!("Expected second node to be an ObjectNode")
   }
