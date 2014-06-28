@@ -126,7 +126,6 @@ fn make_pair(key: ObjectRef, value: ObjectRef) -> ObjectRef {
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let mut machine = Machine::new();
 
-  let target_ref  = ObjectRef::new(~Empty::new());
   let caller_ref  = ObjectRef::new(~Empty::new());
 
   let obj_key_ref = ObjectRef::new(~Empty::new());
@@ -136,8 +135,8 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let sym_key_sym = sym_key_ref.symbol_ref().unwrap().clone();
   let sym_val_ref = machine.symbol("bar");
 
-  {
-    let mut target = target_ref.lock().try_cast::<Empty>().unwrap();
+  let target_ref = {
+    let mut target = Empty::new();
 
     target.meta_mut().members.push(None);
 
@@ -146,7 +145,9 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
 
     target.meta_mut().members.push(Some(Relationship::new(
       make_pair(sym_key_ref.clone(), sym_val_ref.clone()))));
-  }
+
+    ObjectRef::new(~target)
+  };
 
   LookupReceiverTestEnv {
     machine:     machine,
