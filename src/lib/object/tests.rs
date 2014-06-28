@@ -119,19 +119,8 @@ struct LookupReceiverTestEnv {
   sym_val_ref: ObjectRef
 }
 
-// Maybe this should be a helper inside the library? Seems pretty useful.
 fn make_pair(key: ObjectRef, value: ObjectRef) -> ObjectRef {
-  let pair_ref = ObjectRef::new(~Empty::new());
-
-  {
-    let mut pair = pair_ref.lock().try_cast::<Empty>().unwrap();
-
-    pair.meta_mut().members.push(None);
-    pair.meta_mut().members.push(Some(Relationship::new(key)));
-    pair.meta_mut().members.push(Some(Relationship::new(value)));
-  }
-
-  pair_ref
+  ObjectRef::new(~Empty::new_pair(key, value))
 }
 
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {

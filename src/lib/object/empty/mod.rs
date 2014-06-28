@@ -20,6 +20,41 @@ impl Empty {
   pub fn new() -> Empty {
     Empty { meta: Meta::new() }
   }
+
+  /// Creates a new Empty containing a Nucleus-lookup-style pair.
+  ///
+  /// The resulting members structure looks like this:
+  ///
+  /// 1. A hole (`None`).
+  /// 2. Non-child: `key`.
+  /// 3. Non-child: `value`.
+  pub fn new_pair(key: ObjectRef, value: ObjectRef) -> Empty {
+    let mut empty = Empty::new();
+
+    empty.meta.members.push(None);
+    empty.meta.members.push(Some(Relationship::new(key)));
+    empty.meta.members.push(Some(Relationship::new(value)));
+
+    empty
+  }
+
+  /// Creates a new Empty containing a Nucleus-lookup-style pair, where the
+  /// value is marked as a child relationship.
+  ///
+  /// The resulting members structure looks like this:
+  ///
+  /// 1. A hole (`None`).
+  /// 2. Non-child: `key`.
+  /// 3. Child: `value`.
+  pub fn new_pair_to_child(key: ObjectRef, value: ObjectRef) -> Empty {
+    let mut empty = Empty::new();
+
+    empty.meta.members.push(None);
+    empty.meta.members.push(Some(Relationship::new(key)));
+    empty.meta.members.push(Some(Relationship::new_child(value)));
+
+    empty
+  }
 }
 
 impl Object for Empty {
