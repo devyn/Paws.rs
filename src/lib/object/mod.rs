@@ -388,8 +388,15 @@ pub type NativeReceiver = fn (&Machine, Params) -> Reaction;
 /// represents that without the overhead of constructing an object.
 #[deriving(Clone, Eq, TotalEq)]
 pub struct Params {
-  pub caller: ObjectRef,
+  /// The Execution-ish object from which the receiver was invoked.
+  pub caller:  ObjectRef,
+
+  /// The left-hand side of the combination that caused this receiver to be
+  /// invoked.
   pub subject: ObjectRef,
+
+  /// The right-hand side of the combination that caused this receiver to be
+  /// invoked.
   pub message: ObjectRef
 }
 

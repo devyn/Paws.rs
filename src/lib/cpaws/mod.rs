@@ -14,8 +14,14 @@ mod tests;
 /// subnodes, or an execution of subnodes.
 #[deriving(Eq)]
 pub enum Node {
+  /// A symbol string. The cPaws representation of a Symbol object.
   Symbol(~str),
+
+  /// An expression of subnodes. The semantics of this are such that everything
+  /// within this is run, and then the result is combined to the left.
   Expression(~[Node]),
+
+  /// The cPaws representation of an Execution object.
   Execution(~[Node])
 }
 

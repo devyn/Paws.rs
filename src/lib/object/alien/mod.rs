@@ -22,8 +22,13 @@ mod tests;
 /// Most operations which handle Executions should be capable of transparently
 /// handling Aliens as well.
 pub struct Alien {
+  /// A function to execute upon realization.
   pub  routine: Routine,
+
+  /// Routine-specific (non-generic) data. Often used to store multiple
+  /// arguments when implementing the nuclear call-pattern.
   pub  data:    ~Any:'static+Send+Share,
+
   priv meta:    Meta
 }
 

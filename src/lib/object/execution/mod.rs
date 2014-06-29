@@ -18,6 +18,8 @@ use machine::{Machine, Combination, Stage, StageParams};
 #[cfg(test)]
 mod tests;
 
+/// Implements an Execution as a reference to a Script, a program counter, as
+/// well as a stack for evaluating subexpressions.
 #[deriving(Clone)]
 pub struct Execution {
   priv root:     Script,
@@ -224,6 +226,8 @@ impl Object for Execution {
   }
 }
 
+/// A receiver that simply stages the subject (which should be an Execution or
+/// an Alien) with the message as the response.
 #[allow(unused_variable)]
 pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
   React(Stage(StageParams {

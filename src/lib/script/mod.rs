@@ -4,11 +4,17 @@
 use std::io::IoResult;
 use object::{Object,ObjectRef};
 
-/// A node can either be a single Object (`ObjectNode`) or a subexpression of
-/// multiple Nodes to be executed in sequence (`ExpressionNode`).
+/// The Nodes of a script are evaluated by combining them in series as the
+/// `message`, with whatever the response of the last combination was as the
+/// `subject`.
 #[deriving(Clone, Eq, TotalEq)]
 pub enum Node {
+  /// Indicates that the given object should be combined as-is.
   ObjectNode(ObjectRef),
+
+  /// Indicates that the nodes within should all be combined in series against
+  /// the locals of the context (Execution) they are in, and the result should
+  /// then be combined with the outer response.
   ExpressionNode(~[Node])
 }
 

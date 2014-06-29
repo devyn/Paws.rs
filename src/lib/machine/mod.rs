@@ -81,7 +81,10 @@ impl Machine {
 /// If the `subject` is `None`, the Combination shall be against the calling
 /// Execution's locals.
 pub struct Combination {
+  /// The left hand side, what the `message` is combined *against*.
   pub subject: Option<ObjectRef>,
+
+  /// The right hand side, what the `subject` is combined *with*.
   pub message: ObjectRef
 }
 
@@ -94,13 +97,21 @@ pub struct MaskRequest;
 /// **WIP**. An operation for a Reactor to react.
 #[deriving(Clone, Eq, TotalEq)]
 pub enum Operation {
+  /// Tells the reactor to realize based on the parameters given.
   Stage(StageParams)
 }
 
 /// Parameters for a Stage operation.
 #[deriving(Clone, Eq, TotalEq)]
 pub struct StageParams {
+  /// The execution to realize.
   pub execution: ObjectRef,
+
+  /// The response to realize the execution with, filling the hole that was left
+  /// in it.
   pub response:  ObjectRef,
+
+  /// A request for responsibility over some object that must be fulfilled, if
+  /// present, before realizing the execution.
   pub mask:      Option<MaskRequest>
 }
