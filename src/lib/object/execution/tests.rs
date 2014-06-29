@@ -26,16 +26,12 @@ fn execution_advance_flat() {
   let green = machine.symbol("green");
   let blue  = machine.symbol("blue");
 
-  // {.hello world} advance(red)   => Combination(red <- hello)
+  // Pristine
+  // {.hello world} advance(red)   => Combination(None <- hello)
   let combination0 =
     execution.advance(execution_ref.clone(), red.clone()).unwrap();
 
-  match combination0.subject {
-    Some(ref object_ref) =>
-      assert!(object_ref == &red),
-    None => fail!("combination0.subject is None")
-  }
-
+  assert!(combination0.subject.is_none());
   assert!(combination0.message == symbols[0]);
 
   // {hello .world} advance(green) => Combination(green <- world)
@@ -67,16 +63,12 @@ fn execution_advance_empty_expression() {
 
   let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
-  // {.()} advance(dummy) => Combination(dummy <- <this>)
+  // Pristine
+  // {.()} advance(dummy) => Combination(None <- <this>)
   let combination =
     execution.advance(execution_ref.clone(), dummy_symbol.clone()).unwrap();
 
-  match combination.subject {
-    Some(ref object_ref) =>
-      assert!(object_ref == &dummy_symbol),
-    None => fail!("combination.subject is None")
-  }
-
+  assert!(combination.subject.is_none());
   assert!(combination.message == execution_ref);
 }
 
@@ -84,6 +76,7 @@ fn execution_advance_empty_expression() {
 fn execution_advance_nested_once() {
   let machine = Machine::new();
 
+  let dummy = machine.symbol("dummy");
   let red   = machine.symbol("red");
   let green = machine.symbol("green");
   let blue  = machine.symbol("blue");
@@ -91,36 +84,46 @@ fn execution_advance_nested_once() {
   let execution_ref =
     ObjectRef::new(
       ~Execution::new(
-        Script(~[ExpressionNode(~[ObjectNode(red.clone())])])));
+        Script(~[ObjectNode(dummy.clone()),
+                 ExpressionNode(~[ObjectNode(red.clone())])])));
 
   let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
-  // {.(red)} advance(green) => Combination(None <- red)
-  // green {(red.)}
+  // Pristine
+  // {.dummy (red)} advance(dummy) => Combination(None <- dummy)
   let combination0 =
-    execution.advance(execution_ref.clone(), green.clone()).unwrap();
+    execution.advance(execution_ref.clone(), dummy.clone()).unwrap();
 
   assert!(combination0.subject.is_none());
-  assert!(combination0.message == red);
+  assert!(combination0.message == dummy);
 
-  // green {(red.)} advance(blue) => Combination(green <- blue)
-  // {(red)=blue.}
+  // {dummy .(red)} advance(green) => Combination(None <- red)
+  // green {dummy (red.)}
   let combination1 =
+    execution.advance(execution_ref.clone(), green.clone()).unwrap();
+
+  assert!(combination1.subject.is_none());
+  assert!(combination1.message == red);
+
+  // green {dummy (red.)} advance(blue) => Combination(green <- blue)
+  // {dummy (red)=blue.}
+  let combination2 =
     execution.advance(execution_ref.clone(), blue.clone()).unwrap();
 
-  match combination1.subject {
+  match combination2.subject {
     Some(ref object_ref) =>
       assert!(object_ref == &green),
-    None => fail!("combination1.subject is None")
+    None => fail!("combination2.subject is None")
   }
 
-  assert!(combination1.message == blue);
+  assert!(combination2.message == blue);
 }
 
 #[test]
 fn execution_advance_nested_twice() {
   let machine = Machine::new();
 
+  let dummy = machine.symbol("dummy");
   let red   = machine.symbol("red");
   let green = machine.symbol("green");
   let blue  = machine.symbol("blue");
@@ -130,39 +133,48 @@ fn execution_advance_nested_twice() {
     ObjectRef::new(
       ~Execution::new(
         Script(~[
+          ObjectNode(dummy.clone()),
           ExpressionNode(~[
             ExpressionNode(~[ObjectNode(red.clone())])])])));
 
   let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
 
-  // {.((red))} advance(green) => Combination(None <- red)
-  // green {(.(red))}
-  // green None {((.red))}
-  // green None {((red.))}
+  // Pristine
+  // {.dummy ((red))} advance(dummy) => Combination(None <- dummy)
   let combination0 =
-    execution.advance(execution_ref.clone(), green.clone()).unwrap();
+    execution.advance(execution_ref.clone(), dummy.clone()).unwrap();
 
   assert!(combination0.subject.is_none());
-  assert!(combination0.message == red);
+  assert!(combination0.message == dummy);
 
-  // green None {((red.))} advance(blue) => Combination(None <- blue)
-  // green {((red)=blue.)}
+  // {dummy .((red))} advance(green) => Combination(None <- red)
+  // green {dummy (.(red))}
+  // green None {dummy ((.red))}
+  // green None {dummy ((red.))}
   let combination1 =
-    execution.advance(execution_ref.clone(), blue.clone()).unwrap();
+    execution.advance(execution_ref.clone(), green.clone()).unwrap();
 
   assert!(combination1.subject.is_none());
-  assert!(combination1.message == blue);
+  assert!(combination1.message == red);
 
-  // green {((red)=blue.)} advance(black) => Combination(green <- black)
-  // {((red)=blue)=black.}
+  // green None {dummy ((red.))} advance(blue) => Combination(None <- blue)
+  // green {dummy ((red)=blue.)}
   let combination2 =
+    execution.advance(execution_ref.clone(), blue.clone()).unwrap();
+
+  assert!(combination2.subject.is_none());
+  assert!(combination2.message == blue);
+
+  // green {dummy ((red)=blue.)} advance(black) => Combination(green <- black)
+  // {dummy ((red)=blue)=black.}
+  let combination3 =
     execution.advance(execution_ref.clone(), black.clone()).unwrap();
 
-  match combination2.subject {
+  match combination3.subject {
     Some(ref object_ref) =>
       assert!(object_ref == &green),
-    None => fail!("combination2.subject is None")
+    None => fail!("combination3.subject is None")
   }
 
-  assert!(combination2.message == black);
+  assert!(combination3.message == black);
 }

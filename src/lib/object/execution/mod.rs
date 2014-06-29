@@ -58,6 +58,10 @@ impl Execution {
   pub fn advance(&mut self, self_ref: ObjectRef,
                  response: ObjectRef) -> Option<Combination> {
 
+    // If the Execution is pristine, we need to disregard the response. This is
+    // just to remind us.
+    let was_pristine = self.pristine;
+
     if !self.pristine && self.stack.is_empty() && self.pc.is_empty() {
       // This Execution has been completed; no Combination can be produced.
       return None;
@@ -81,6 +85,8 @@ impl Execution {
         if self.pc.is_empty() {
           None
         } else {
+          // Don't need to worry about disregarding the response, since this
+          // can't possibly happen if the execution was pristine.
           Some(Combination {
             subject: self.stack.pop().unwrap(),
             message: response
@@ -100,7 +106,14 @@ impl Execution {
         // Contains the response if it is not yet consumed by the first
         // iteration of #4. The response is consumed if an ExpressionNode is
         // encountered.
-        let mut response_if_unconsumed = Some(response);
+        let mut response_if_unconsumed =
+          if !was_pristine {
+            Some(response)
+          } else {
+            // If the execution was pristine, we need to disregard the response
+            // and just combine against locals anyway.
+            None
+          };
 
         // The resulting message of the combination.
         let mut resulting_message: ObjectRef;
