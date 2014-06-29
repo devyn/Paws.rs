@@ -13,7 +13,7 @@ use std::io::IoResult;
 
 use script::*;
 use object::*;
-use machine::{Machine, Combination, Stage, StageParams};
+use machine::{Machine, Combination};
 
 #[cfg(test)]
 mod tests;
@@ -226,13 +226,9 @@ impl Object for Execution {
   }
 }
 
-/// A receiver that simply stages the subject (which should be an Execution or
-/// an Alien) with the message as the response.
+/// A receiver that simply tells the reactor to realize the subject (which
+/// should be an Execution or an Alien) with the message as the response.
 #[allow(unused_variable)]
 pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
-  React(Stage(StageParams {
-    execution: params.subject.clone(),
-    response:  params.message.clone(),
-    mask:      None
-  }))
+  React(params.subject.clone(), params.message.clone())
 }

@@ -94,16 +94,9 @@ pub struct Combination {
 #[deriving(Clone, Eq, TotalEq)]
 pub struct MaskRequest;
 
-/// **WIP**. An operation for a Reactor to react.
+/// Parameters for a realization operation.
 #[deriving(Clone, Eq, TotalEq)]
-pub enum Operation {
-  /// Tells the reactor to realize based on the parameters given.
-  Stage(StageParams)
-}
-
-/// Parameters for a Stage operation.
-#[deriving(Clone, Eq, TotalEq)]
-pub struct StageParams {
+pub struct RealizeParams {
   /// The execution to realize.
   pub execution: ObjectRef,
 

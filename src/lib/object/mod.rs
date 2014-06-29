@@ -3,7 +3,7 @@
 use std::any::*;
 use sync::{Arc, Mutex, MutexGuard};
 use std::io::IoResult;
-use machine::{Machine, Operation, Stage, StageParams};
+use machine::Machine;
 
 pub mod empty;
 pub mod symbol;
@@ -74,11 +74,7 @@ pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
   match subject.deref().meta()
                .lookup_member(&params.message) {
     Some(value) =>
-      React(Stage(StageParams {
-        execution: params.caller.clone(),
-        response:  value,
-        mask:      None
-      })),
+      React(params.caller.clone(), value),
     None =>
       Yield
   }
@@ -400,15 +396,17 @@ pub struct Params {
   pub message: ObjectRef
 }
 
-/// Indicates the result of a native combination operation.
+/// Indicates the result of a native operation exposed to the Paws-world, which
+/// may either be an immediate realization (`React`) or delayed/non-existent
+/// (`Yield`).
 #[deriving(Clone, Eq, TotalEq)]
 pub enum Reaction {
-  /// Indicates that the reactor should perform the given operation immediately,
-  /// if possible.
+  /// Indicates that the reactor should realize the given execution and response
+  /// immediately.
   ///
-  /// If the operation can not be performed immediately, it should be appended
-  /// to the Machine's queue.
-  React(Operation),
+  /// 1. is the Execution-ish to realize (quite often the caller)
+  /// 2. is the response to realize with
+  React(ObjectRef, ObjectRef),
 
   /// Indicates that there is nothing that should be reacted immediately as a
   /// result of the receiver, so the reactor should wait on the Machine's queue

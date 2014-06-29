@@ -175,12 +175,12 @@ fn lookup_receiver_hit_object_key() {
   });
 
   match reaction {
-    React(Stage(ref stage_params)) => {
-      assert!(&stage_params.execution == &env.caller_ref);
-      assert!(&stage_params.response  == &env.obj_val_ref);
+    React(ref execution, ref response) => {
+      assert!(execution == &env.caller_ref);
+      assert!(response  == &env.obj_val_ref);
     },
 
-    _ => fail!("unexpected reaction!")
+    _ => fail!("unexpected reaction! expected React(...)")
   }
 }
 
@@ -196,12 +196,12 @@ fn lookup_receiver_hit_symbol_key() {
   });
 
   match reaction {
-    React(Stage(ref stage_params)) => {
-      assert!(&stage_params.execution == &env.caller_ref);
-      assert!(&stage_params.response  == &env.sym_val_ref);
+    React(ref execution, ref response) => {
+      assert!(execution == &env.caller_ref);
+      assert!(response  == &env.sym_val_ref);
     },
 
-    _ => fail!("unexpected reaction! expected React(Stage(...))")
+    _ => fail!("unexpected reaction! expected React(...)")
   }
 }
 
