@@ -294,32 +294,7 @@ pub struct Meta {
   /// spec).
   pub members: Vec<Option<Relationship>>,
 
-  /// The Object's custom receiver, if present.
-  ///
-  /// From the spec:
-  ///
-  /// > **Finding the receiver for a given Object**
-  /// >
-  /// > A 'receiver' is an Execution associated with a given object, one
-  /// responsible for handling combinations when that object is the `subject` of
-  /// the combination.
-  /// >
-  /// > 1. If the `subject` has no `receiver` property set, then an Execution
-  /// >    implementing the "default receiver" algorithm for that type of object
-  /// >    is the result of this algorithm. (Each type described above includes
-  /// >    a description of that type's default receiver's algorithm.)
-  /// >
-  /// > 2. If the `subject` has a `receiver` property, and the value of that
-  /// >    property is queueable (i.e. an Execution), then that Execution is the
-  /// >    result of this algorithm.
-  /// >
-  /// > 3. If the `subject`'s `receiver` is not queueable (that is, not an
-  /// >    Execution), then recursively apply this algorithm starting at 1, with
-  /// >    that `receiver` as the `subject` *for the purposes of this algorithm*.
-  /// >    (*Not* for the consumer of this algorithm, who will have their own
-  /// >    reference to the original `subject`.)
-  /// >
-  /// > **Rationale:** The recursive nature of this process allows object-system designers to wrap their receiver(s) in metadata, or otherwise abstract them away.
+  /// The Object's custom receiver, if present. See `Machine::combine()`.
   pub receiver: Option<ObjectRef>
 }
 
@@ -349,7 +324,7 @@ impl Meta {
   ///
   /// * Iteration is done in reverse order; key and value are second and
   ///   third elements respectively, so result is `Some(goodbye)`
-  fn lookup_member(&self, key: &ObjectRef) -> Option<ObjectRef> {
+  pub fn lookup_member(&self, key: &ObjectRef) -> Option<ObjectRef> {
     for maybe_relationship in self.members.tail().iter().rev() {
       match maybe_relationship {
         &Some(ref relationship) => {

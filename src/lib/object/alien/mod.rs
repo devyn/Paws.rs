@@ -2,7 +2,7 @@
 
 use object::*;
 use object::execution::stage_receiver;
-use machine::*;
+use machine::Machine;
 
 use std::any::*;
 use std::io::IoResult;
