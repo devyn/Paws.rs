@@ -6,8 +6,6 @@ use std::char::is_whitespace;
 use script;
 use script::Script;
 use machine::Machine;
-use object::{Object, ObjectRef};
-use object::execution;
 
 #[cfg(test)]
 mod tests;
@@ -233,11 +231,8 @@ fn cpaws_node_to_script_node(machine: &Machine,
         ).collect()
       ),
 
-    &Execution(ref nodes) => {
-      let object: ~Object:Send+Share =
-        ~execution::Execution::new(build_script(machine, nodes.as_slice()));
-
-      script::ObjectNode(ObjectRef::new(object))
-    }
+    &Execution(ref nodes) =>
+      script::ObjectNode(machine.execution(
+        build_script(machine, nodes.as_slice())))
   }
 }
