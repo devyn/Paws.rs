@@ -68,7 +68,7 @@ pub trait Object {
 /// This receiver is the default receiver for all Object types, unless
 /// overridden.
 #[allow(unused_variable)]
-pub fn lookup_receiver(machine: &mut Machine, params: Params) -> Reaction {
+pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
   let subject = params.subject.lock();
 
   match subject.deref().meta()
@@ -379,7 +379,7 @@ impl Meta {
 }
 
 /// The lowest level handler for a combination.
-pub type NativeReceiver = fn (&mut Machine, Params) -> Reaction;
+pub type NativeReceiver = fn (&Machine, Params) -> Reaction;
 
 /// Parameters to be given to a receiver.
 ///

@@ -90,10 +90,10 @@ fn parse_nodes_unexpected_terminators() {
 
 #[test]
 fn build_script_symbols() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
   let     nodes   = ~[Symbol(~"hello"), Symbol(~"world")];
 
-  let Script(script_nodes) = build_script(&mut machine, nodes);
+  let Script(script_nodes) = build_script(&machine, nodes);
 
   assert!(script_nodes.len() == 2);
 
@@ -114,10 +114,10 @@ fn build_script_symbols() {
 
 #[test]
 fn build_script_expressions() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
   let     nodes   = ~[Symbol(~"a"), Expression(~[Symbol(~"b"), Symbol(~"c")])];
 
-  let Script(script_nodes) = build_script(&mut machine, nodes);
+  let Script(script_nodes) = build_script(&machine, nodes);
 
   assert!(script_nodes.len() == 2);
 
@@ -150,10 +150,10 @@ fn build_script_expressions() {
 
 #[test]
 fn build_script_executions() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
   let     nodes   = ~[Execution(~[Symbol(~"a")])];
 
-  let Script(script_nodes) = build_script(&mut machine, nodes);
+  let Script(script_nodes) = build_script(&machine, nodes);
 
   assert!(script_nodes.len() == 1);
 

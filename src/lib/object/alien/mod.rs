@@ -59,6 +59,6 @@ impl Object for Alien {
 /// A function that implements the logic behind an Alien.
 pub type Routine = fn <'a>(
                        alien: TypedRefGuard<'a, Alien>,
-                       machine: &mut Machine,
+                       machine: &Machine,
                        response: ObjectRef)
                        -> Reaction;

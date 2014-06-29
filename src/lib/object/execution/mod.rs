@@ -225,7 +225,7 @@ impl Object for Execution {
 }
 
 #[allow(unused_variable)]
-pub fn stage_receiver(machine: &mut Machine, params: Params) -> Reaction {
+pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
   React(Stage(StageParams {
     execution: params.subject.clone(),
     response:  params.message.clone(),

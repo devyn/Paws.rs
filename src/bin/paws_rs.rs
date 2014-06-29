@@ -17,11 +17,11 @@ fn main() {
 
   match cpaws::parse_nodes(input, "<stdin>") {
     Ok(nodes) => {
-      let mut machine = Machine::new();
+      let machine = Machine::new();
 
       let test_symbol = machine.symbol("test");
 
-      let script = cpaws::build_script(&mut machine, nodes);
+      let script = cpaws::build_script(&machine, nodes);
 
       let execution_ref =
         ObjectRef::new(~Execution::new(script));

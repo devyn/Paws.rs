@@ -124,7 +124,7 @@ fn make_pair(key: ObjectRef, value: ObjectRef) -> ObjectRef {
 }
 
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let caller_ref  = ObjectRef::new(~Empty::new());
 

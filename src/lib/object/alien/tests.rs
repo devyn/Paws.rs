@@ -20,7 +20,7 @@ mod simple {
   #[allow(unused_variable)]
   fn routine<'a>(
                  mut alien: TypedRefGuard<'a, Alien>,
-                 machine:   &mut Machine,
+                 machine:   &Machine,
                  response:  ObjectRef)
                  -> Reaction {
 
@@ -37,7 +37,7 @@ mod simple {
 
 #[test]
 fn simple_alien() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let alien_ref = ObjectRef::new(~simple::new_alien());
 
@@ -46,12 +46,12 @@ fn simple_alien() {
 
   {
     let alien = alien_ref.lock().try_cast::<Alien>().unwrap();
-    (alien.routine)(alien, &mut machine, hello);
+    (alien.routine)(alien, &machine, hello);
   }
 
   {
     let alien = alien_ref.lock().try_cast::<Alien>().unwrap();
-    (alien.routine)(alien, &mut machine, world);
+    (alien.routine)(alien, &machine, world);
   }
 
   let alien = alien_ref.lock().try_cast::<Alien>().unwrap();

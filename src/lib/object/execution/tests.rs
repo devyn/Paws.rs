@@ -6,7 +6,7 @@ use script::*;
 
 #[test]
 fn execution_advance_flat() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let symbols: ~[ObjectRef] = ["hello", "world"].iter().map(|&string|
     machine.symbol(string)
@@ -56,7 +56,7 @@ fn execution_advance_flat() {
 
 #[test]
 fn execution_advance_empty_expression() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let dummy_symbol = machine.symbol("dummy");
 
@@ -82,7 +82,7 @@ fn execution_advance_empty_expression() {
 
 #[test]
 fn execution_advance_nested_once() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let red   = machine.symbol("red");
   let green = machine.symbol("green");
@@ -119,7 +119,7 @@ fn execution_advance_nested_once() {
 
 #[test]
 fn execution_advance_nested_twice() {
-  let mut machine = Machine::new();
+  let machine = Machine::new();
 
   let red   = machine.symbol("red");
   let green = machine.symbol("green");

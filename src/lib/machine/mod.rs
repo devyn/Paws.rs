@@ -3,35 +3,33 @@
 use object::ObjectRef;
 use object::symbol::{Symbol, SymbolMap};
 
-/// A machine represents the context of execution and reactors for realization
-/// of Paws operations.
-///
-/// Currently mostly unimplemented. At the moment they only
-/// contain a SymbolMap for creating Symbols to be used within the context of
-/// the machine.
+use sync::{Arc, Mutex};
+
+/// A machine represents the context of execution for Paws programs.
 pub struct Machine {
-  priv symbol_map: SymbolMap
+  /// Dictates which pointers should be used to represent Symbol strings.
+  pub symbol_map: Arc<Mutex<SymbolMap>>
 }
 
 impl Machine {
   /// Creates a new Machine.
   pub fn new() -> Machine {
     Machine {
-      symbol_map: SymbolMap::new()
+      symbol_map: Arc::new(Mutex::new(SymbolMap::new()))
     }
   }
 
   /// Creates a Symbol object representing the given string within the context
   /// of this machine.
-  pub fn symbol(&mut self, string: &str) -> ObjectRef {
+  pub fn symbol(&self, string: &str) -> ObjectRef {
     ObjectRef::new_symbol(
-      ~Symbol::new(self.symbol_map.intern(string)))
+      ~Symbol::new(self.symbol_map.lock().intern(string)))
   }
 
   /// **TODO**. Adds an entry to the Machine's queue, making it available for a
   /// reactor to pull and execute.
   #[allow(unused_variable)]
-  pub fn stage(&mut self, execution: ObjectRef, response: ObjectRef,
+  pub fn stage(&self, execution: ObjectRef, response: ObjectRef,
                mask: Option<MaskRequest>) {
     unimplemented!()
   }
