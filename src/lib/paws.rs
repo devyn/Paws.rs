@@ -21,8 +21,11 @@
 
 extern crate collections;
 extern crate sync;
+extern crate native;
 
 pub mod cpaws;
 pub mod object;
 pub mod script;
 pub mod machine;
+
+mod util;

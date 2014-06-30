@@ -4,6 +4,7 @@ use script::Script;
 
 use object::Object;
 use object::ObjectRef;
+use object::ObjectRefGuard;
 use object::Relationship;
 use object::{Reaction, React, Yield};
 use object::Params;
@@ -13,6 +14,8 @@ use object::symbol::{Symbol, SymbolMap};
 use object::execution::Execution;
 use object::alien::Alien;
 
+use util::queue::Queue;
+
 use std::any::AnyRefExt;
 use sync::{Arc, Mutex};
 
@@ -20,14 +23,19 @@ use sync::{Arc, Mutex};
 mod tests;
 
 /// A machine represents the context of execution for Paws programs.
+#[deriving(Clone)]
 pub struct Machine {
   /// Dictates which pointers should be used to represent Symbol strings.
   pub  symbol_map: Arc<Mutex<SymbolMap>>,
 
-  /// A Symbol for "locals" used internally to affix Executions' locals
-  /// onto them, as well as for comparison. Purely an optimization to avoid
-  /// locking the symbol map; not strictly necessary.
-  priv locals_sym: ObjectRef
+  /// A Symbol for "locals" used internally to affix Executions' locals onto
+  /// them, as well as for comparison. Purely an optimization to avoid locking
+  /// the symbol map; not strictly necessary.
+  priv locals_sym: ObjectRef,
+
+  /// The receive-end of the main execution realization queue. Reactors pull
+  /// from this.
+  priv queue:      Arc<Queue<Realization>>,
 }
 
 impl Machine {
@@ -39,7 +47,9 @@ impl Machine {
 
     Machine {
       symbol_map: Arc::new(Mutex::new(symbol_map)),
-      locals_sym: locals_sym
+      locals_sym: locals_sym,
+
+      queue:      Arc::new(Queue::new())
     }
   }
 
@@ -75,6 +85,25 @@ impl Machine {
     ObjectRef::new(execution)
   }
 
+  /// Adds a realization (execution and response) to the machine's global queue,
+  /// which the Machine's reactors should soon pick up as long as there is
+  /// nothing blocking that execution.
+  ///
+  /// **Note:** if you're calling this from a receiver or Alien, you probably
+  /// want to `React` instead; it's more efficient, but with a few caveats.
+  pub fn queue(&self, execution: ObjectRef, response: ObjectRef) {
+    self.queue.push(Realization(execution, response));
+  }
+
+  /// Marks the machine's global queue for termination. This action is
+  /// irreversable.
+  ///
+  /// Reactors may not stop immediately, but they should stop as soon as they
+  /// check the global queue.
+  pub fn stop(&self) {
+    self.queue.end();
+  }
+
   /// Implements the combination algorithm, finding the appropriate receiver and
   /// then invoking it.
   ///
@@ -107,8 +136,9 @@ impl Machine {
   /// > **Rationale:** The recursive nature of this process allows object-system
   /// > designers to wrap their receiver(s) in metadata, or otherwise abstract
   /// > them away.
-  pub fn combine(&self,
-                 caller: ObjectRef,
+  pub fn combine<'a>
+                 (&self,
+                 caller: ObjectRefGuard<'a>,
                  combination: Combination)
                  -> Reaction {
 
@@ -128,12 +158,15 @@ impl Machine {
         // we can't continue, since the Execution is obviously totally fucked
         // up. Yes, there should be some error reporting, but that's not how
         // this works at the moment.
-        match caller.lock().meta().lookup_member(&self.locals_sym) {
+        match caller.deref().meta().lookup_member(&self.locals_sym) {
           Some(locals) => (locals, message),
           None         => return Yield
         }
       }
     };
+
+    // We no longer need to look at any of the caller's properties.
+    let caller = caller.unlock().clone();
 
     // Perform the receiver-finding algorithm, using `use_receiver_of` to
     // iterate through until we find the receiver we want to use.
@@ -192,6 +225,73 @@ impl Machine {
       }
     }
   }
+
+  /// Iterates over the machine's global queue, performing realizations.
+  ///
+  /// Multiple reactors may be run as separate native tasks (**important!** not
+  /// green-threading compatible at the moment), or a single reactor setup may be
+  /// run standalone in any task.
+  pub fn run_reactor(&self) {
+
+    'queue:
+    for Realization(mut execution_ref, mut response_ref) in self.queue.iter() {
+
+      'immediate:
+      loop {
+        // Detect whether `execution_ref` is an Execution, an Alien, or
+        // something else, and handle those cases separately, capturing the
+        // Reaction.
+        let reaction = match execution_ref.lock().try_cast::<Execution>() {
+          Ok(mut execution) => {
+            // For an Execution, we just want to advance() it and have the
+            // Machine process the combination if there was one.
+            match execution.advance(execution_ref.clone(), response_ref) {
+              Some(combination) =>
+                // Calls the receiver and all that jazz, resulting in a
+                // Reaction.
+                self.combine(execution.into_untyped(), combination),
+
+              None =>
+                // This execution is already complete, so we can't do anything;
+                // we have to go back to the queue.
+                continue 'queue
+            }
+          },
+
+          Err(execution_ish) =>
+            match execution_ish.try_cast::<Alien>() {
+              Ok(alien) =>
+                // Aliens are a bit different. They handle unlocking themselves
+                // at a point which they see fit, so we give them the lock.
+                (alien.routine)(alien, self, response_ref),
+
+              Err(_) =>
+                // Finally, if it was neither an Execution nor an Alien, it
+                // really doesn't belong in this queue and we'll just pretend it
+                // wasn't there.
+                continue 'queue
+            }
+        };
+
+        // Handle the Reaction.
+        match reaction {
+          React(next_execution_ref, next_response_ref) => {
+            // We got an execution and response right away, so let's do that
+            // immediately.
+            execution_ref = next_execution_ref;
+            response_ref  = next_response_ref;
+            continue 'immediate
+          },
+
+          Yield =>
+            // The receiver or Alien wants us to go back to the queue,
+            // potentially because it doesn't have anything ready for us right
+            // now or because it intentionally doesn't want to continue.
+            continue 'queue
+        }
+      }
+    }
+  }
 }
 
 /// Describes a Combination of a `message` against a `subject`.
@@ -206,23 +306,5 @@ pub struct Combination {
   pub message: ObjectRef
 }
 
-/// **TODO**. A request for a mask.
-///
-/// No idea what this is going to look like yet.
-#[deriving(Clone, Eq, TotalEq)]
-pub struct MaskRequest;
-
-/// Parameters for a realization operation.
-#[deriving(Clone, Eq, TotalEq)]
-pub struct RealizeParams {
-  /// The execution to realize.
-  pub execution: ObjectRef,
-
-  /// The response to realize the execution with, filling the hole that was left
-  /// in it.
-  pub response:  ObjectRef,
-
-  /// A request for responsibility over some object that must be fulfilled, if
-  /// present, before realizing the execution.
-  pub mask:      Option<MaskRequest>
-}
+/// Describes a Realization of an `execution` (0) with a `response` (1).
+struct Realization(ObjectRef, ObjectRef);

@@ -1,5 +1,5 @@
 use machine::*;
-use script::Script;
+use script::*;
 
 use object::*;
 use object::alien::Alien;
@@ -66,7 +66,7 @@ fn machine_can_combine_via_direct_default_receiver() {
   //
   // Anyway, I chose this because the `stage_receiver` is really the simplest of
   // all of them to target, which is what an Execution has.
-  let reaction = machine.combine(caller_ref.clone(), Combination {
+  let reaction = machine.combine(caller_ref.lock(), Combination {
     subject: Some(caller_ref.clone()),
     message: message_ref.clone()
   });
@@ -100,7 +100,7 @@ fn machine_can_combine_via_indirect_default_receiver() {
     caller.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
   }
 
-  let reaction = machine.combine(caller_ref.clone(), Combination {
+  let reaction = machine.combine(caller_ref.lock(), Combination {
     subject: Some(caller_ref.clone()),
     message: key_ref
   });
@@ -137,7 +137,7 @@ fn machine_can_combine_via_executionish_receiver() {
   // params object `[, caller, other, message]`
 
   let check_reaction = |receiver| {
-    let reaction = machine.combine(caller_ref.clone(), Combination {
+    let reaction = machine.combine(caller_ref.lock(), Combination {
       subject: Some(other_ref.clone()),
       message: message_ref.clone()
     });
@@ -203,10 +203,60 @@ fn machine_can_combine_with_and_lookup_on_implicit_locals() {
     locals.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
   }
 
-  let reaction = machine.combine(caller_ref.clone(), Combination {
+  let reaction = machine.combine(caller_ref.lock(), Combination {
     subject: None,
     message: key_ref
   });
 
   assert!(reaction == React(caller_ref, value_ref));
+}
+
+#[test]
+fn machine_react_stop_call() {
+  let machine = Machine::new();
+
+  let caller_ref = machine.execution(
+                     Script(~[
+                       ObjectNode(machine.symbol("stop")),
+                       ExpressionNode(~[])]));
+
+  #[allow(unused_variable)]
+  fn stop_routine<'a>(
+                  alien: TypedRefGuard<'a, Alien>,
+                  machine: &Machine,
+                  response: ObjectRef)
+                  -> Reaction {
+
+    machine.stop();
+    Yield
+  }
+
+  let stop_alien_ref = ObjectRef::new(~Alien::new(
+                         stop_routine, ~() as ~Any:'static+Send+Share));
+
+  {
+    // Affix a stop alien onto the caller's locals.
+    let caller     = caller_ref.lock();
+
+    let locals_ref = caller.deref().meta()
+                           .lookup_member(&machine.symbol("locals"))
+                           .expect("locals not found on created Execution!");
+
+    let mut locals = locals_ref.lock();
+
+    let pair_ref   = ObjectRef::new(
+                       ~Empty::new_pair_to_child(
+                         machine.symbol("stop"), stop_alien_ref));
+
+    locals.meta_mut().members.push(None);
+    locals.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
+  }
+
+  // Almost ready...
+  //
+  // Since it's pristine we can really give it anything we want.
+  machine.queue(caller_ref.clone(), caller_ref);
+
+  // Let's go!
+  machine.run_reactor();
 }
