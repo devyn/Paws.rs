@@ -5,10 +5,14 @@ use sync::{Arc, Mutex, MutexGuard};
 use std::io::IoResult;
 use machine::Machine;
 
+pub use object::members::Members;
+
 pub mod empty;
 pub mod symbol;
 pub mod execution;
 pub mod alien;
+
+mod members;
 
 #[cfg(test)]
 mod tests;
@@ -71,8 +75,8 @@ pub trait Object {
 pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
   let subject = params.subject.lock();
 
-  match subject.deref().meta()
-               .lookup_member(&params.message) {
+  match subject.deref().meta().members
+               .lookup_pair(&params.message) {
     Some(value) =>
       React(params.caller.clone(), value),
     None =>
@@ -283,16 +287,11 @@ impl Relationship {
 pub struct Meta {
   /// A list of Relationships that make up the Object's members.
   ///
-  /// The vector is of `Option<Relationship>` to allow for holes -- when a
-  /// member is inserted at a position beyond the size of the vector, the gap is
-  /// filled with `None`s that will act as if the element does not exist.
-  ///
-  /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
-  /// what Paws.rs strives to implement) should never assume anything about the
-  /// first element of the list and should instead start from the second element
-  /// unless specifically requested not to, as per the 'noughty' rule (see
-  /// spec).
-  pub members: Vec<Option<Relationship>>,
+  /// Relationships that are 'children' are interpreted such that the Object
+  /// 'owns' them, and so for responsibility to be acquired for this Object,
+  /// responsibility must also be acquired for this Object's child members, and
+  /// their child members, and so on.
+  pub members:  Members,
 
   /// The Object's custom receiver, if present. See `Machine::combine()`.
   pub receiver: Option<ObjectRef>
@@ -305,47 +304,9 @@ impl Meta {
   /// * `receiver`: `None`
   pub fn new() -> Meta {
     Meta {
-      members:  Vec::new(),
+      members:  Members::new(),
       receiver: None
     }
-  }
-
-  /// Searches for a given key within `members` according to Paws' "nuclear"
-  /// association-list semantics.
-  ///
-  /// # Example
-  ///
-  /// Using JavaScript-like syntax to represent members, ignoring other
-  /// properties of the objects:
-  ///
-  ///     [, [, hello, world], [, foo, bar], [, hello, goodbye]]
-  ///
-  /// When looking up `hello`:
-  ///
-  /// * Iteration is done in reverse order; key and value are second and
-  ///   third elements respectively, so result is `Some(goodbye)`
-  pub fn lookup_member(&self, key: &ObjectRef) -> Option<ObjectRef> {
-    for maybe_relationship in self.members.tail().iter().rev() {
-      match maybe_relationship {
-        &Some(ref relationship) => {
-          let object  = relationship.to().lock();
-          let members = &object.deref().meta().members;
-
-          if members.len() >= 3 {
-            match (members.get(1), members.get(2)) {
-              (&Some(ref rel_key), &Some(ref rel_value)) =>
-                if rel_key.to().eq_as_symbol(key) ||
-                   rel_key.to() == key {
-                  return Some(rel_value.to().clone())
-                },
-              _ => ()
-            }
-          }
-        },
-        _ => ()
-      }
-    }
-    None
   }
 }
 

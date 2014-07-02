@@ -11,23 +11,64 @@ fn meta_member_relationships() {
   let object1 = ObjectRef::new(~Empty::new());
   let object2 = ObjectRef::new(~Empty::new());
 
-  let mut target = Empty::new();
+  let mut meta = Meta::new();
 
-  target.meta_mut().members.push(
-    Some(Relationship::new(object1.clone())));
+  meta.members.push(object1.clone());
 
-  target.meta_mut().members.push(
-    Some(Relationship::new_child(object2.clone())));
+  meta.members.push_child(object2.clone());
 
-  let mut iter = target.meta().members.iter();
+  assert!(!meta.members.get(0).unwrap().is_child());
+  assert!( meta.members.get(0).unwrap().to() == &object1);
 
-  let relationship = iter.next().unwrap().get_ref();
-  assert!(!relationship.is_child());
-  assert!( relationship.to() == &object1);
+  assert!( meta.members.get(1).unwrap().is_child());
+  assert!( meta.members.get(1).unwrap().to() == &object2);
+}
 
-  let relationship = iter.next().unwrap().get_ref();
-  assert!( relationship.is_child());
-  assert!( relationship.to() == &object2);
+#[test]
+fn meta_member_push_pair() {
+  let key = ObjectRef::new(~Empty::new());
+  let val = ObjectRef::new(~Empty::new());
+
+  let mut meta = Meta::new();
+
+  meta.members.push_pair(key.clone(), val.clone());
+
+  meta.members.push_pair_to_child(key.clone(), val.clone());
+
+  assert!(meta.members.len() == 3);
+
+  assert!(meta.members.get(0).is_none());
+
+  assert!(meta.members.get(1).unwrap().is_child());
+  assert!(meta.members.get(2).unwrap().is_child());
+
+  {
+    // Check non-child pair (1)
+    let pair = meta.members.get(1).unwrap().to().lock();
+    let pair_members = &pair.deref().meta().members;
+
+    assert!( pair_members.get(0).is_none());
+
+    assert!(!pair_members.get(1).unwrap().is_child());
+    assert!( pair_members.get(1).unwrap().to() == &key);
+
+    assert!(!pair_members.get(2).unwrap().is_child()); // should not be child.
+    assert!( pair_members.get(2).unwrap().to() == &val);
+  }
+
+  {
+    // Check child pair (2)
+    let pair = meta.members.get(2).unwrap().to().lock();
+    let pair_members = &pair.deref().meta().members;
+
+    assert!( pair_members.get(0).is_none());
+
+    assert!(!pair_members.get(1).unwrap().is_child());
+    assert!( pair_members.get(1).unwrap().to() == &key);
+
+    assert!( pair_members.get(2).unwrap().is_child()); // should be child.
+    assert!( pair_members.get(2).unwrap().to() == &val);
+  }
 }
 
 #[test]
@@ -119,10 +160,6 @@ struct LookupReceiverTestEnv {
   sym_val_ref: ObjectRef
 }
 
-fn make_pair(key: ObjectRef, value: ObjectRef) -> ObjectRef {
-  ObjectRef::new(~Empty::new_pair(key, value))
-}
-
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let machine = Machine::new();
 
@@ -138,13 +175,11 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let target_ref = {
     let mut target = ~Empty::new();
 
-    target.meta_mut().members.push(None);
+    target.meta_mut().members.push_pair(
+      obj_key_ref.clone(), obj_val_ref.clone());
 
-    target.meta_mut().members.push(Some(Relationship::new(
-      make_pair(obj_key_ref.clone(), obj_val_ref.clone()))));
-
-    target.meta_mut().members.push(Some(Relationship::new(
-      make_pair(sym_key_ref.clone(), sym_val_ref.clone()))));
+    target.meta_mut().members.push_pair(
+      sym_key_ref.clone(), sym_val_ref.clone());
 
     ObjectRef::new(target)
   };

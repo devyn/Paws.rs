@@ -5,7 +5,6 @@ use script::Script;
 use object::Object;
 use object::ObjectRef;
 use object::ObjectRefGuard;
-use object::Relationship;
 use object::{Reaction, React, Yield};
 use object::Params;
 
@@ -74,13 +73,7 @@ impl Machine {
 
     let locals_ref = ObjectRef::new(~Empty::new());
 
-    let locals_pair =
-      ObjectRef::new(
-        ~Empty::new_pair_to_child(locals_key, locals_ref));
-
-    execution.meta_mut().members.push(None);
-    execution.meta_mut().members.push(Some(
-      Relationship::new_child(locals_pair)));
+    execution.meta_mut().members.push_pair_to_child(locals_key, locals_ref);
 
     ObjectRef::new(execution)
   }
@@ -158,7 +151,7 @@ impl Machine {
         // we can't continue, since the Execution is obviously totally fucked
         // up. Yes, there should be some error reporting, but that's not how
         // this works at the moment.
-        match caller.deref().meta().lookup_member(&self.locals_sym) {
+        match caller.deref().meta().members.lookup_pair(&self.locals_sym) {
           Some(locals) => (locals, message),
           None         => return Yield
         }
@@ -210,10 +203,9 @@ impl Machine {
             // params object as the response.
             let mut params = ~Empty::new();
 
-            params.meta_mut().members.push(None);
-            params.meta_mut().members.push(Some(Relationship::new(caller)));
-            params.meta_mut().members.push(Some(Relationship::new(subject)));
-            params.meta_mut().members.push(Some(Relationship::new(message)));
+            params.meta_mut().members.set(1, caller);
+            params.meta_mut().members.set(2, subject);
+            params.meta_mut().members.set(3, message);
 
             return React(receiver.clone(), ObjectRef::new(params))
           } else {

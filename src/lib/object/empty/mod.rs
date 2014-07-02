@@ -31,9 +31,8 @@ impl Empty {
   pub fn new_pair(key: ObjectRef, value: ObjectRef) -> Empty {
     let mut empty = Empty::new();
 
-    empty.meta.members.push(None);
-    empty.meta.members.push(Some(Relationship::new(key)));
-    empty.meta.members.push(Some(Relationship::new(value)));
+    empty.meta.members.set(1, key);
+    empty.meta.members.set(2, value);
 
     empty
   }
@@ -49,9 +48,8 @@ impl Empty {
   pub fn new_pair_to_child(key: ObjectRef, value: ObjectRef) -> Empty {
     let mut empty = Empty::new();
 
-    empty.meta.members.push(None);
-    empty.meta.members.push(Some(Relationship::new(key)));
-    empty.meta.members.push(Some(Relationship::new_child(value)));
+    empty.meta.members.set(1, key);
+    empty.meta.members.set_child(2, value);
 
     empty
   }

@@ -42,12 +42,12 @@ fn machine_creates_executions_that_have_unique_locals() {
   let execution2 = execution2_ref.lock().try_cast::<Execution>()
                      .ok().expect("not an Execution!");
 
-  let locals1 = execution1.deref().meta()
-                          .lookup_member(&machine.symbol("locals"))
+  let locals1 = execution1.deref().meta().members
+                          .lookup_pair(&machine.symbol("locals"))
                           .expect("locals not found!");
 
-  let locals2 = execution2.deref().meta()
-                          .lookup_member(&machine.symbol("locals"))
+  let locals2 = execution2.deref().meta().members
+                          .lookup_pair(&machine.symbol("locals"))
                           .expect("locals not found!");
 
   assert!(locals1 != locals2);
@@ -93,11 +93,8 @@ fn machine_can_combine_via_indirect_default_receiver() {
     
     caller.meta_mut().receiver = Some(other_ref);
 
-    let pair_ref = ObjectRef::new(
-                     ~Empty::new_pair_to_child(
-                       key_ref.clone(), value_ref.clone()));
-
-    caller.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
+    caller.meta_mut().members.push_pair_to_child(
+      key_ref.clone(), value_ref.clone());
   }
 
   let reaction = machine.combine(caller_ref.lock(), Combination {
@@ -154,13 +151,13 @@ fn machine_can_combine_via_executionish_receiver() {
         assert!(members.get(0).is_none());
 
         assert!(members.get(1) ==
-                &Some(Relationship::new(caller_ref.clone())));
+                Some(&Relationship::new(caller_ref.clone())));
 
         assert!(members.get(2) ==
-                &Some(Relationship::new(other_ref.clone())));
+                Some(&Relationship::new(other_ref.clone())));
 
         assert!(members.get(3) ==
-                &Some(Relationship::new(message_ref.clone())));
+                Some(&Relationship::new(message_ref.clone())));
       },
 
       Yield => fail!("expected React(...), got Yield")
@@ -189,18 +186,14 @@ fn machine_can_combine_with_and_lookup_on_implicit_locals() {
     // Add a key and value to the caller's locals.
     let caller     = caller_ref.lock();
 
-    let locals_ref = caller.deref().meta()
-                           .lookup_member(&machine.symbol("locals"))
+    let locals_ref = caller.deref().meta().members
+                           .lookup_pair(&machine.symbol("locals"))
                            .expect("locals not found on created Execution!");
 
     let mut locals = locals_ref.lock();
 
-    let pair_ref   = ObjectRef::new(
-                       ~Empty::new_pair_to_child(
-                         key_ref.clone(), value_ref.clone()));
-
-    locals.meta_mut().members.push(None);
-    locals.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
+    locals.meta_mut().members.push_pair_to_child(
+      key_ref.clone(), value_ref.clone());
   }
 
   let reaction = machine.combine(caller_ref.lock(), Combination {
@@ -238,18 +231,14 @@ fn machine_react_stop_call() {
     // Affix a stop alien onto the caller's locals.
     let caller     = caller_ref.lock();
 
-    let locals_ref = caller.deref().meta()
-                           .lookup_member(&machine.symbol("locals"))
+    let locals_ref = caller.deref().meta().members
+                           .lookup_pair(&machine.symbol("locals"))
                            .expect("locals not found on created Execution!");
 
     let mut locals = locals_ref.lock();
 
-    let pair_ref   = ObjectRef::new(
-                       ~Empty::new_pair_to_child(
-                         machine.symbol("stop"), stop_alien_ref));
-
-    locals.meta_mut().members.push(None);
-    locals.meta_mut().members.push(Some(Relationship::new_child(pair_ref)));
+    locals.meta_mut().members.push_pair_to_child(
+      machine.symbol("stop"), stop_alien_ref);
   }
 
   // Almost ready...
