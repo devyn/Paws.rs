@@ -23,18 +23,18 @@ mod tests;
 /// handling Aliens as well.
 pub struct Alien {
   /// A function to execute upon realization.
-  pub  routine: Routine,
+  pub routine: Routine,
 
   /// Routine-specific (non-generic) data. Often used to store multiple
   /// arguments when implementing the nuclear call-pattern.
-  pub  data:    ~Any:'static+Send+Share,
+  pub data:    Box<Any+'static+Send+Share>,
 
-  priv meta:    Meta
+      meta:    Meta
 }
 
 impl Alien {
   /// Construct an Alien around a given Routine.
-  pub fn new(routine: Routine, data: ~Any:'static+Send+Share) -> Alien {
+  pub fn new(routine: Routine, data: Box<Any+'static+Send+Share>) -> Alien {
     Alien {
       routine: routine,
       data:    data,

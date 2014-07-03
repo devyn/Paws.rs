@@ -4,7 +4,7 @@ use object::*;
 
 use std::io::IoResult;
 use sync::Arc;
-use collections::HashMap;
+use std::collections::HashMap;
 
 #[cfg(test)]
 mod tests;
@@ -14,7 +14,7 @@ mod tests;
 /// The most common usage is as part of a Machine.
 #[deriving(Clone)]
 pub struct SymbolMap {
-  priv map: HashMap<~str, Arc<~str>>
+  map: HashMap<String, Arc<String>>
 }
 
 impl SymbolMap {
@@ -30,33 +30,33 @@ impl SymbolMap {
   ///
   ///     let mut symbol_map = SymbolMap::new();
   ///
-  ///     // Intern four strings (~ is used to guarantee uniqueness)
+  ///     // Intern four strings (`box` is used to guarantee uniqueness)
   ///     // Each pair is equivalent, but not pointer-equal.
   ///     // The results, however, will be.
-  ///     let hello1 = symbol_map.intern(~"hello");
-  ///     let hello2 = symbol_map.intern(~"hello");
+  ///     let hello1 = symbol_map.intern(box "hello");
+  ///     let hello2 = symbol_map.intern(box "hello");
   ///
-  ///     let world1 = symbol_map.intern(~"world");
-  ///     let world2 = symbol_map.intern(~"world");
+  ///     let world1 = symbol_map.intern(box "world");
+  ///     let world2 = symbol_map.intern(box "world");
   ///
   ///     // hello1 is pointer-equal to hello2
-  ///     assert!((&*hello1 as *~str) == (&*hello2 as *~str));
+  ///     assert!((&*hello1 as *String) == (&*hello2 as *String));
   ///
   ///     // world1 is pointer-equal to world2
-  ///     assert!((&*world1 as *~str) == (&*world2 as *~str));
+  ///     assert!((&*world1 as *String) == (&*world2 as *String));
   ///
   ///     // hello1 is NOT pointer-equal, however, to world1
-  ///     assert!((&*hello1 as *~str) == (&*world1 as *~str));
-  pub fn intern(&mut self, string: &str) -> Arc<~str> {
+  ///     assert!((&*hello1 as *String) != (&*world1 as *String));
+  pub fn intern(&mut self, string: &str) -> Arc<String> {
     self.map.find_equiv(&string).map(|string_ptr| {
 
       string_ptr.clone()
 
     }).unwrap_or_else(|| {
 
-      let string_ptr = Arc::new(string.to_owned());
+      let string_ptr = Arc::new(string.to_string());
 
-      self.map.insert(string.to_owned(), string_ptr.clone());
+      self.map.insert(string.to_string(), string_ptr.clone());
 
       string_ptr
 
@@ -64,7 +64,7 @@ impl SymbolMap {
   }
 }
 
-impl Container for SymbolMap {
+impl Collection for SymbolMap {
   fn len(&self) -> uint {
     // In case you want to know how many symbols have been interned.
     self.map.len()
@@ -75,8 +75,8 @@ impl Container for SymbolMap {
 /// other `Symbol`s' strings from the same `SymbolMap`.
 #[deriving(Clone)]
 pub struct Symbol {
-  priv name: Arc<~str>,
-  priv meta: Meta
+  name: Arc<String>,
+  meta: Meta
 }
 
 impl Symbol {
@@ -85,7 +85,7 @@ impl Symbol {
   /// Note that `ObjectRef::new_symbol()` should be used instead of
   /// `ObjectRef::new()` when boxing this type up, in order to ensure that
   /// non-locking symbol comparison (`ObjectRef::eq_as_symbol()`) succeeds.
-  pub fn new(name: Arc<~str>) -> Symbol {
+  pub fn new(name: Arc<String>) -> Symbol {
     Symbol {
       name: name,
       meta: Meta::new()
@@ -100,14 +100,14 @@ impl Symbol {
   /// Returns true if the Arc pointer in this Symbol points at the same string
   /// as the Arc pointer in the other Symbol.
   pub fn eq_by_name_ptr(&self, other: &Symbol) -> bool {
-    (&*self.name as *~str) == (&*other.name as *~str)
+    (&*self.name as *String) == (&*other.name as *String)
   }
 
   /// Returns a new Arc pointing at the string that this Symbol contains.
   ///
   /// Prefer `name()` or `eq_by_name_ptr()` if applicable. Involves cloning an
   /// Arc which is less efficient than either for those purposes.
-  pub fn name_ptr(&self) -> Arc<~str> {
+  pub fn name_ptr(&self) -> Arc<String> {
     self.name.clone()
   }
 }

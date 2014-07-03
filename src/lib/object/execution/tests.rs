@@ -8,19 +8,20 @@ use script::*;
 fn execution_advance_flat() {
   let machine = Machine::new();
 
-  let symbols: ~[ObjectRef] = ["hello", "world"].iter().map(|&string|
-    machine.symbol(string)
-  ).collect();
+  let symbol0 = machine.symbol("hello");
+  let symbol1 = machine.symbol("world");
 
   let execution_ref =
     ObjectRef::new(
-      ~Execution::new(
-        Script(symbols.iter().map(|object_ref|
-          ObjectNode(object_ref.clone())
-        ).collect())
+      box Execution::new(
+        Script(vec![
+          ObjectNode(symbol0.clone()),
+          ObjectNode(symbol1.clone())
+        ])
       ));
 
-  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>()
+                        .ok().unwrap();
 
   let red   = machine.symbol("red");
   let green = machine.symbol("green");
@@ -32,7 +33,7 @@ fn execution_advance_flat() {
     execution.advance(execution_ref.clone(), red.clone()).unwrap();
 
   assert!(combination0.subject.is_none());
-  assert!(combination0.message == symbols[0]);
+  assert!(combination0.message == symbol0);
 
   // {hello .world} advance(green) => Combination(green <- world)
   let combination1 =
@@ -44,7 +45,7 @@ fn execution_advance_flat() {
     None => fail!("combination1.subject is None")
   }
 
-  assert!(combination1.message == symbols[1]);
+  assert!(combination1.message == symbol1);
 
   // {hello world.} advance(blue)  => None
   assert!(execution.advance(execution_ref.clone(), blue).is_none());
@@ -57,11 +58,13 @@ fn execution_advance_empty_expression() {
   let dummy_symbol = machine.symbol("dummy");
 
   let execution_ref =
-    ObjectRef::new(
-      ~Execution::new(
-        Script(~[ExpressionNode(~[])])));
+    ObjectRef::new(box
+      Execution::new(
+        Script( vec![
+          ExpressionNode( vec![] )] )));
 
-  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>()
+                        .ok().unwrap();
 
   // Pristine
   // {.()} advance(dummy) => Combination(None <- <this>)
@@ -82,12 +85,13 @@ fn execution_advance_nested_once() {
   let blue  = machine.symbol("blue");
 
   let execution_ref =
-    ObjectRef::new(
-      ~Execution::new(
-        Script(~[ObjectNode(dummy.clone()),
-                 ExpressionNode(~[ObjectNode(red.clone())])])));
+    ObjectRef::new(box
+      Execution::new(
+        Script( vec![ObjectNode(dummy.clone()),
+                     ExpressionNode( vec![ObjectNode(red.clone())] )] )));
 
-  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>()
+                        .ok().unwrap();
 
   // Pristine
   // {.dummy (red)} advance(dummy) => Combination(None <- dummy)
@@ -130,14 +134,15 @@ fn execution_advance_nested_twice() {
   let black = machine.symbol("black");
 
   let execution_ref =
-    ObjectRef::new(
-      ~Execution::new(
-        Script(~[
+    ObjectRef::new(box
+      Execution::new(
+        Script( vec![
           ObjectNode(dummy.clone()),
-          ExpressionNode(~[
-            ExpressionNode(~[ObjectNode(red.clone())])])])));
+          ExpressionNode( vec![
+            ExpressionNode( vec![ObjectNode(red.clone())] )] )] )));
 
-  let mut execution = execution_ref.lock().try_cast::<Execution>().unwrap();
+  let mut execution = execution_ref.lock().try_cast::<Execution>()
+                        .ok().unwrap();
 
   // Pristine
   // {.dummy ((red))} advance(dummy) => Combination(None <- dummy)

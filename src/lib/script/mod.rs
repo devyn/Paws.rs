@@ -7,7 +7,7 @@ use object::{Object,ObjectRef};
 /// The Nodes of a script are evaluated by combining them in series as the
 /// `message`, with whatever the response of the last combination was as the
 /// `subject`.
-#[deriving(Clone, Eq, TotalEq)]
+#[deriving(Clone, Eq, PartialEq)]
 pub enum Node {
   /// Indicates that the given object should be combined as-is.
   ObjectNode(ObjectRef),
@@ -15,7 +15,7 @@ pub enum Node {
   /// Indicates that the nodes within should all be combined in series against
   /// the locals of the context (Execution) they are in, and the result should
   /// then be combined with the outer response.
-  ExpressionNode(~[Node])
+  ExpressionNode(Vec<Node>)
 }
 
 impl Node {
@@ -38,8 +38,8 @@ impl Node {
 
 /// Points to the root of a Script, which is an expression (in the same sense as
 /// `ExpressionNode`) of many Nodes.
-#[deriving(Clone, Eq, TotalEq)]
-pub struct Script(~[Node]);
+#[deriving(Clone, Eq, PartialEq)]
+pub struct Script(pub Vec<Node>);
 
 impl Script {
   /// Formats a Script for debugging.

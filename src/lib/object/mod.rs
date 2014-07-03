@@ -88,13 +88,13 @@ pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
 /// underneath.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  priv reference:  Arc<Mutex<~Object:Send+Share>>,
-  priv symbol_ref: Option<Arc<~str>>
+  reference:  Arc<Mutex<Box<Object+Send+Share>>>,
+  symbol_ref: Option<Arc<String>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
-  pub fn new(object: ~Object:Send+Share) -> ObjectRef {
+  pub fn new(object: Box<Object+Send+Share>) -> ObjectRef {
     ObjectRef {
       reference:  Arc::new(Mutex::new(object)),
       symbol_ref: None
@@ -107,10 +107,10 @@ impl ObjectRef {
   /// (`ObjectRef::eq_as_symbol()`). All Symbol-containing ObjectRefs are
   /// assumed to have been created this way; behavior is undefined if they are
   /// created with `ObjectRef::new()` instead.
-  pub fn new_symbol(symbol: ~symbol::Symbol) -> ObjectRef {
+  pub fn new_symbol(symbol: Box<symbol::Symbol>) -> ObjectRef {
     ObjectRef {
       symbol_ref: Some(symbol.name_ptr()),
-      reference:  Arc::new(Mutex::new(symbol as ~Object:Send+Share))
+      reference:  Arc::new(Mutex::new(symbol as Box<Object+Send+Share>))
     }
   }
 
@@ -130,7 +130,7 @@ impl ObjectRef {
   pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
     match (&self.symbol_ref, &other.symbol_ref) {
       (&Some(ref a), &Some(ref b)) =>
-        (&**a as *~str) == (&**b as *~str),
+        (&**a as *String) == (&**b as *String),
 
       _ => false
     }
@@ -138,26 +138,26 @@ impl ObjectRef {
 
   /// If this `ObjectRef` is a Symbol reference, returns a reference to the
   /// pointer to the Symbol's name.
-  pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<~str>> {
+  pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<String>> {
     self.symbol_ref.as_ref()
   }
 }
 
-impl Eq for ObjectRef {
+impl PartialEq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.reference  as *Mutex<~Object:Send+Share>) ==
-    (&*other.reference as *Mutex<~Object:Send+Share>)
+    (&*self.reference  as *Mutex<Box<Object+Send+Share>>) ==
+    (&*other.reference as *Mutex<Box<Object+Send+Share>>)
   }
 }
 
-impl TotalEq for ObjectRef { }
+impl Eq for ObjectRef { }
 
 /// Represents exclusive access to an object.
 ///
 /// Exclusive access is dropped when this guard is dropped.
 pub struct ObjectRefGuard<'a> {
-  priv object_ref: &'a ObjectRef,
-  priv guard:      MutexGuard<'a, ~Object:Send+Share>
+  object_ref: &'a ObjectRef,
+  guard:      MutexGuard<'a, Box<Object+Send+Share>>
 }
 
 impl<'a> ObjectRefGuard<'a> {
@@ -194,14 +194,14 @@ impl<'a> ObjectRefGuard<'a> {
   }
 }
 
-impl<'a> Deref<~Object:Send+Share> for ObjectRefGuard<'a> {
-  fn deref<'a>(&'a self) -> &'a ~Object:Send+Share {
+impl<'a> Deref<Box<Object+Send+Share>> for ObjectRefGuard<'a> {
+  fn deref<'a>(&'a self) -> &'a Box<Object+Send+Share> {
     self.guard.deref()
   }
 }
 
-impl<'a> DerefMut<~Object:Send+Share> for ObjectRefGuard<'a> {
-  fn deref_mut<'a>(&'a mut self) -> &'a mut ~Object:Send+Share {
+impl<'a> DerefMut<Box<Object+Send+Share>> for ObjectRefGuard<'a> {
+  fn deref_mut<'a>(&'a mut self) -> &'a mut Box<Object+Send+Share> {
     self.guard.deref_mut()
   }
 }
@@ -209,7 +209,7 @@ impl<'a> DerefMut<~Object:Send+Share> for ObjectRefGuard<'a> {
 /// Allows pre-typechecked guards to be marked with their types to remove
 /// redundant boilerplate when passing `ObjectRefGuard`s around.
 pub struct TypedRefGuard<'a, T> {
-  priv object_ref_guard: ObjectRefGuard<'a>
+  object_ref_guard: ObjectRefGuard<'a>
 }
 
 impl<'a, T> TypedRefGuard<'a, T> {
@@ -249,10 +249,10 @@ impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
 }
 
 /// A link to an object, to be referenced within an object's 'members' list.
-#[deriving(Clone, Eq, TotalEq)]
+#[deriving(Clone, Eq, PartialEq)]
 pub struct Relationship {
-  priv to:       ObjectRef,
-  priv is_child: bool
+  to:       ObjectRef,
+  is_child: bool
 }
 
 impl Relationship {
@@ -300,7 +300,7 @@ pub struct Meta {
 impl Meta {
   /// Helpful constructor with some sensible default values.
   ///
-  /// * `members`: empty vec
+  /// * `members`: empty
   /// * `receiver`: `None`
   pub fn new() -> Meta {
     Meta {
@@ -318,7 +318,7 @@ pub type NativeReceiver = fn (&Machine, Params) -> Reaction;
 /// If the receiver were non-native, it would be sent these items as an empty
 /// object with the members `[, caller, subject, message]`, so this structure
 /// represents that without the overhead of constructing an object.
-#[deriving(Clone, Eq, TotalEq)]
+#[deriving(Clone, Eq, PartialEq)]
 pub struct Params {
   /// The Execution-ish object from which the receiver was invoked.
   pub caller:  ObjectRef,
@@ -335,7 +335,7 @@ pub struct Params {
 /// Indicates the result of a native operation exposed to the Paws-world, which
 /// may either be an immediate realization (`React`) or delayed/non-existent
 /// (`Yield`).
-#[deriving(Clone, Eq, TotalEq)]
+#[deriving(Clone, Eq, PartialEq)]
 pub enum Reaction {
   /// Indicates that the reactor should realize the given execution and response
   /// immediately.

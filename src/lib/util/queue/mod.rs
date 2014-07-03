@@ -1,6 +1,5 @@
 //! Thread-safe queue implementation.
 
-use std::cast;
 use std::mem;
 
 use sync::Mutex;
@@ -10,26 +9,26 @@ mod tests;
 
 struct QueueRoot<T> {
   alive: bool,
-  first: ~QueueNode<T>,
+  first: Box<QueueNode<T>>,
   last:  *mut QueueNode<T>
 }
 
 enum QueueNode<T> {
   Nil,
-  Cons(T, ~QueueNode<T>)
+  Cons(T, Box<QueueNode<T>>)
 }
 
 /// A somewhat efficient blocking FIFO queue based on a linked list and a mutex.
 pub struct Queue<T> {
-  priv root: Mutex<QueueRoot<T>>
+  root: Mutex<QueueRoot<T>>
 }
 
-impl<T:'static+Send+Share> Queue<T> {
+impl<T: 'static+Send+Share> Queue<T> {
   /// Creates a new queue.
   pub fn new() -> Queue<T> {
     Queue {
       root: Mutex::new({
-        let mut first = ~Nil;
+        let mut first = box Nil;
 
         QueueRoot {
           alive: true,
@@ -50,7 +49,7 @@ impl<T:'static+Send+Share> Queue<T> {
 
     let last_mut: &mut QueueNode<T> = unsafe { &mut *root.last };
 
-    let mut next = ~Nil;
+    let mut next = box Nil;
 
     root.last = &mut *next as *mut QueueNode<T>;
     *last_mut = Cons(message, next);
@@ -68,25 +67,25 @@ impl<T:'static+Send+Share> Queue<T> {
       if !root.alive { return None }
 
       match root.first {
-        ~Cons(..) => {
+        box Cons(..) => {
           // This hack avoids memory allocation when we're moving things around.
           //
           // TODO: need a better way to do this. Surely there must be one.
-          let first = mem::replace(&mut root.first, unsafe { mem::init() });
+          let first = mem::replace(&mut root.first, unsafe { mem::zeroed() });
 
           match first {
-            ~Cons(message, next) => {
+            box Cons(message, next) => {
               let invalid = mem::replace(&mut root.first, next);
 
               // If we don't do this, Rust will try to drop() some invalid data.
-              unsafe { cast::forget(invalid); }
+              unsafe { mem::forget(invalid); }
 
               return Some(message);
             },
             _ => unreachable!()
           }
         },
-        ~Nil =>
+        box Nil =>
           root.cond.wait()
       }
     }
@@ -102,8 +101,8 @@ impl<T:'static+Send+Share> Queue<T> {
     let mut root = self.root.lock();
 
     root.alive = false;
-    root.first = unsafe { mem::init() };
-    root.last  = unsafe { mem::init() };
+    root.first = unsafe { mem::zeroed() };
+    root.last  = unsafe { mem::zeroed() };
 
     root.cond.broadcast();
   }

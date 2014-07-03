@@ -22,11 +22,11 @@ mod tests;
 /// well as a stack for evaluating subexpressions.
 #[deriving(Clone)]
 pub struct Execution {
-  priv root:     Script,
-  priv pristine: bool,
-  priv pc:       ~[uint],
-  priv stack:    ~[Option<ObjectRef>],
-  priv meta:     Meta
+  root:     Script,
+  pristine: bool,
+  pc:       Vec<uint>,
+  stack:    Vec<Option<ObjectRef>>,
+  meta:     Meta
 }
 
 impl Execution {
@@ -35,8 +35,8 @@ impl Execution {
     Execution {
       root:     root,
       pristine: true,
-      pc:       ~[],
-      stack:    ~[],
+      pc:       Vec::new(),
+      stack:    Vec::new(),
       meta:     Meta::new()
     }
   }
@@ -74,7 +74,7 @@ impl Execution {
       *self.pc.mut_last().unwrap() += 1;
     }
 
-    match node_at_pc(&self.root, self.pc) {
+    match node_at_pc(&self.root, self.pc.as_slice()) {
       None => {
         // If there was no Node after the original pc, the current Node is the
         // enclosing Expression.
@@ -144,7 +144,7 @@ impl Execution {
 
                 // Descend into the ExpressionNode.
                 self.pc.push(0);
-                current = &nodes[0];
+                current = nodes.get(0);
               },
 
             &ObjectNode(ref object_ref) => {
@@ -175,9 +175,9 @@ fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
 
   let mut nodes = inner_nodes;
 
-  for &i in pc.iter().take(pc.len() - 1) {
-    match nodes[i] {
-      ExpressionNode(ref inner_nodes) => {
+  for &i in pc.init().iter() {
+    match nodes.get(i) {
+      &ExpressionNode(ref inner_nodes) => {
         nodes = inner_nodes;
       },
       _ => fail!("Expected all pc positions except last one to point to \
@@ -188,7 +188,7 @@ fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
   let i = *pc.last().unwrap();
 
   if i < nodes.len() {
-    Some(&nodes[i])
+    Some(nodes.get(i))
   } else {
     None
   }
@@ -196,7 +196,7 @@ fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
 
 impl Object for Execution {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
-    try!(write!(writer, "Execution \\{ root: "));
+    try!(write!(writer, "Execution {{ root: "));
 
     try!(self.root.fmt_paws(writer));
 
@@ -221,7 +221,7 @@ impl Object for Execution {
       }
     }
 
-    try!(write!(writer, "] \\}"));
+    try!(write!(writer, "] }}"));
 
     Ok(())
   }

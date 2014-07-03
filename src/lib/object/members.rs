@@ -201,7 +201,7 @@ impl Members {
   /// Enforces the noughty rule: if the members list is empty, a hole will be
   /// pushed first to avoid touching the 0th index.
   pub fn push_pair(&mut self, key: ObjectRef, value: ObjectRef) {
-    let pair = ObjectRef::new(~Empty::new_pair(key, value));
+    let pair = ObjectRef::new(box Empty::new_pair(key, value));
 
     self.expand_to(1);
     self.push_child(pair);
@@ -214,7 +214,7 @@ impl Members {
   /// Enforces the noughty rule: if the members list is empty, a hole will be
   /// pushed first to avoid touching the 0th index.
   pub fn push_pair_to_child(&mut self, key: ObjectRef, value: ObjectRef) {
-    let pair = ObjectRef::new(~Empty::new_pair_to_child(key, value));
+    let pair = ObjectRef::new(box Empty::new_pair_to_child(key, value));
 
     self.expand_to(1);
     self.push_child(pair);
@@ -230,7 +230,7 @@ impl Members {
   }
 }
 
-impl Container for Members {
+impl Collection for Members {
   fn len(&self) -> uint {
     self.vec.len()
   }

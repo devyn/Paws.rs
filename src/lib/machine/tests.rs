@@ -6,8 +6,6 @@ use object::alien::Alien;
 use object::empty::Empty;
 use object::execution::Execution;
 
-use std::any::Any;
-
 #[test]
 fn machine_creates_symbols_with_different_object_identity() {
   let machine = Machine::new();
@@ -33,8 +31,8 @@ fn machine_can_create_symbols_that_dont_match() {
 fn machine_creates_executions_that_have_unique_locals() {
   let machine = Machine::new();
 
-  let execution1_ref = machine.execution(Script(~[]));
-  let execution2_ref = machine.execution(Script(~[]));
+  let execution1_ref = machine.execution(Script(vec![]));
+  let execution2_ref = machine.execution(Script(vec![]));
 
   let execution1 = execution1_ref.lock().try_cast::<Execution>()
                      .ok().expect("not an Execution!");
@@ -57,8 +55,8 @@ fn machine_creates_executions_that_have_unique_locals() {
 fn machine_can_combine_via_direct_default_receiver() {
   let machine = Machine::new();
 
-  let caller_ref  = machine.execution(Script(~[]));
-  let message_ref = ObjectRef::new(~Empty::new());
+  let caller_ref  = machine.execution(Script(vec![]));
+  let message_ref = ObjectRef::new(box Empty::new());
 
   // This might seem a little unclear, but effectively what we're doing here is
   // combining the caller itself with a target message. Could be a real-world
@@ -78,10 +76,10 @@ fn machine_can_combine_via_direct_default_receiver() {
 fn machine_can_combine_via_indirect_default_receiver() {
   let machine = Machine::new();
 
-  let caller_ref = machine.execution(Script(~[]));
-  let other_ref  = ObjectRef::new(~Empty::new());
-  let key_ref    = ObjectRef::new(~Empty::new());
-  let value_ref  = ObjectRef::new(~Empty::new());
+  let caller_ref = machine.execution(Script(vec![]));
+  let other_ref  = ObjectRef::new(box Empty::new());
+  let key_ref    = ObjectRef::new(box Empty::new());
+  let value_ref  = ObjectRef::new(box Empty::new());
 
   {
     // The goal here is to use the other's `lookup_receiver` on the caller to
@@ -119,13 +117,13 @@ fn machine_can_combine_via_executionish_receiver() {
     fail!("stub_routine was called!")
   }
 
-  let stub_data: ~Any:'static+Send+Share = ~();
+  let stub_data     = box() ();
 
-  let caller_ref    = machine.execution(Script(~[]));
-  let execution_ref = machine.execution(Script(~[]));
-  let alien_ref     = ObjectRef::new(~Alien::new(stub_routine, stub_data));
-  let other_ref     = ObjectRef::new(~Empty::new());
-  let message_ref   = ObjectRef::new(~Empty::new());
+  let caller_ref    = machine.execution(Script(vec![]));
+  let execution_ref = machine.execution(Script(vec![]));
+  let alien_ref     = ObjectRef::new(box Alien::new(stub_routine, stub_data));
+  let other_ref     = ObjectRef::new(box Empty::new());
+  let message_ref   = ObjectRef::new(box Empty::new());
 
   // We have to try two things here: changing receiver to an Execution, and
   // changing receiver to an Alien. `other_ref` will be our target.
@@ -177,10 +175,10 @@ fn machine_can_combine_via_executionish_receiver() {
 fn machine_can_combine_with_and_lookup_on_implicit_locals() {
   let machine = Machine::new();
 
-  let caller_ref = machine.execution(Script(~[]));
+  let caller_ref = machine.execution(Script(vec![]));
 
-  let key_ref    = ObjectRef::new(~Empty::new());
-  let value_ref  = ObjectRef::new(~Empty::new());
+  let key_ref    = ObjectRef::new(box Empty::new());
+  let value_ref  = ObjectRef::new(box Empty::new());
 
   {
     // Add a key and value to the caller's locals.
@@ -209,9 +207,9 @@ fn machine_react_stop_call() {
   let machine = Machine::new();
 
   let caller_ref = machine.execution(
-                     Script(~[
+                     Script(vec![
                        ObjectNode(machine.symbol("stop")),
-                       ExpressionNode(~[])]));
+                       ExpressionNode(vec![])]));
 
   #[allow(unused_variable)]
   fn stop_routine<'a>(
@@ -224,8 +222,8 @@ fn machine_react_stop_call() {
     Yield
   }
 
-  let stop_alien_ref = ObjectRef::new(~Alien::new(
-                         stop_routine, ~() as ~Any:'static+Send+Share));
+  let stop_alien_ref = ObjectRef::new(box Alien::new(
+                         stop_routine, box() ()));
 
   {
     // Affix a stop alien onto the caller's locals.

@@ -15,16 +15,16 @@ fn main() {
 
   let mut stdout = io::stdout();
 
-  match cpaws::parse_nodes(input, "<stdin>") {
+  match cpaws::parse_nodes(input.as_slice(), "<stdin>") {
     Ok(nodes) => {
       let machine = Machine::new();
 
       let test_symbol = machine.symbol("test");
 
-      let script = cpaws::build_script(&machine, nodes);
+      let script = cpaws::build_script(&machine, nodes.as_slice());
 
       let execution_ref =
-        ObjectRef::new(~Execution::new(script));
+        ObjectRef::new(box Execution::new(script));
 
       println!("Advancing script as Execution with \"test\" symbol.");
 

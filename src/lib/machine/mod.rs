@@ -25,16 +25,16 @@ mod tests;
 #[deriving(Clone)]
 pub struct Machine {
   /// Dictates which pointers should be used to represent Symbol strings.
-  pub  symbol_map: Arc<Mutex<SymbolMap>>,
+  pub symbol_map: Arc<Mutex<SymbolMap>>,
 
   /// A Symbol for "locals" used internally to affix Executions' locals onto
   /// them, as well as for comparison. Purely an optimization to avoid locking
   /// the symbol map; not strictly necessary.
-  priv locals_sym: ObjectRef,
+      locals_sym: ObjectRef,
 
   /// The receive-end of the main execution realization queue. Reactors pull
   /// from this.
-  priv queue:      Arc<Queue<Realization>>,
+      queue:      Arc<Queue<Realization>>,
 }
 
 impl Machine {
@@ -42,7 +42,7 @@ impl Machine {
   pub fn new() -> Machine {
     let mut symbol_map = SymbolMap::new();
     let     locals_sym = ObjectRef::new_symbol(
-                           ~Symbol::new(symbol_map.intern("locals")));
+                           box Symbol::new(symbol_map.intern("locals")));
 
     Machine {
       symbol_map: Arc::new(Mutex::new(symbol_map)),
@@ -58,7 +58,7 @@ impl Machine {
   /// This is the recommended way to create new Symbols.
   pub fn symbol(&self, string: &str) -> ObjectRef {
     ObjectRef::new_symbol(
-      ~Symbol::new(self.symbol_map.lock().intern(string)))
+      box Symbol::new(self.symbol_map.lock().intern(string)))
   }
 
   /// Creates an Execution object from the given `Script` with a 'locals' member
@@ -66,12 +66,12 @@ impl Machine {
   ///
   /// This is the recommended way to create new Executions.
   pub fn execution(&self, root: Script) -> ObjectRef {
-    let mut execution = ~Execution::new(root);
+    let mut execution = box Execution::new(root);
 
-    let locals_key = ObjectRef::new_symbol(~Symbol::new(
+    let locals_key = ObjectRef::new_symbol(box Symbol::new(
                          self.locals_sym.symbol_ref().unwrap().clone()));
 
-    let locals_ref = ObjectRef::new(~Empty::new());
+    let locals_ref = ObjectRef::new(box Empty::new());
 
     execution.meta_mut().members.push_pair_to_child(locals_key, locals_ref);
 
@@ -201,7 +201,7 @@ impl Machine {
             // If it is, we construct a params object
             // `[, caller, subject, message]` and `React` the receiver with the
             // params object as the response.
-            let mut params = ~Empty::new();
+            let mut params = box Empty::new();
 
             params.meta_mut().members.set(1, caller);
             params.meta_mut().members.set(2, subject);

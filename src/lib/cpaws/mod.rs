@@ -12,17 +12,17 @@ mod tests;
 
 /// Represents a cPaws node, which is either a symbol string, an expression of
 /// subnodes, or an execution of subnodes.
-#[deriving(Eq)]
+#[deriving(Clone, Eq, PartialEq, Show)]
 pub enum Node {
   /// A symbol string. The cPaws representation of a Symbol object.
-  Symbol(~str),
+  Symbol(String),
 
   /// An expression of subnodes. The semantics of this are such that everything
   /// within this is run, and then the result is combined to the left.
-  Expression(~[Node]),
+  Expression(Vec<Node>),
 
   /// The cPaws representation of an Execution object.
-  Execution(~[Node])
+  Execution(Vec<Node>)
 }
 
 /// Holds the state of the parser, including character iterator and position.
@@ -36,7 +36,7 @@ struct ParserState<'r> {
 impl<'r> ParserState<'r> {
   /// Formats an error string based on the current parser state and puts it in
   /// a `Result` as an `Err`
-  fn error<T>(&self, message: &str) -> Result<T, ~str> {
+  fn error<T>(&self, message: String) -> Result<T, String> {
     Err(format!("{}:{}:{}: {}", self.filename, self.line, self.column, message))
   }
 }
@@ -46,7 +46,7 @@ impl<'r> ParserState<'r> {
 /// # Returns
 ///
 /// `Err(message)` if parsing failed; `Ok(nodes)` otherwise.
-pub fn parse_nodes(text: &str, filename: &str) -> Result<~[Node], ~str> {
+pub fn parse_nodes(text: &str, filename: &str) -> Result<Vec<Node>, String> {
   let mut chars = text.chars();
 
   let mut state = ParserState {
@@ -65,10 +65,10 @@ pub fn parse_nodes(text: &str, filename: &str) -> Result<~[Node], ~str> {
 /// # Returns
 ///
 /// `Err(message)` if parsing failed; `Ok(nodes)` otherwise.
-fn parse_nodes_until(state: &mut ParserState, terminator: Option<char>) ->
-   Result<~[Node], ~str> {
+fn parse_nodes_until(state: &mut ParserState, terminator: Option<char>)
+                     -> Result<Vec<Node>, String> {
 
-  let mut nodes = ~[];
+  let mut nodes = Vec::new();
 
   loop {
     match state.chars.next() {
@@ -141,10 +141,10 @@ fn parse_nodes_until(state: &mut ParserState, terminator: Option<char>) ->
 ///
 /// `Err(message)` if end-of-input was reached before the terminator was found;
 /// `Ok(string)` otherwise.
-fn parse_string_until(state: &mut ParserState, terminator: char) ->
-   Result<~str, ~str> {
+fn parse_string_until(state: &mut ParserState, terminator: char)
+                      -> Result<String, String> {
 
-  let mut string = ~"";
+  let mut string = String::new();
 
   loop {
     match state.chars.next() {
@@ -181,9 +181,9 @@ fn parse_string_until(state: &mut ParserState, terminator: char) ->
 /// without quotes.
 ///
 /// Unlike 'parse_string_until', it never returns an error message.
-fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> ~str {
+fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> String {
 
-  let mut string = ~"";
+  let mut string = String::new();
 
   // There isn't really a way to push the first char back onto `state.chars`
   // from `parse_nodes_until` so we have to handle it specially
@@ -213,7 +213,7 @@ fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> ~str {
   string
 }
 
-/// Converts a vector of cPaws nodes into a Paws Script.
+/// Converts a slice of cPaws nodes into a Paws Script.
 pub fn build_script(machine: &Machine, nodes: &[Node]) -> Script {
   Script(
     nodes.iter().map(|node|

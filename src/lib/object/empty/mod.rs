@@ -12,7 +12,7 @@ use std::io::IoResult;
 /// specialized meaning attached.
 #[deriving(Clone)]
 pub struct Empty {
-  priv meta: Meta
+  meta: Meta
 }
 
 impl Empty {
