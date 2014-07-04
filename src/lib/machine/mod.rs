@@ -193,8 +193,8 @@ impl Machine {
 
           let queueable = {
             let receiver = receiver.lock();
-            receiver.deref().as_any().is::<Execution>() ||
-            receiver.deref().as_any().is::<Alien>()
+            receiver.deref().is::<Execution>() ||
+            receiver.deref().is::<Alien>()
           };
 
           if queueable {

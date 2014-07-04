@@ -1,4 +1,4 @@
-//! Paws objects, and a trait that they all share
+//! Paws objects, encapsulation, and metadata.
 
 use std::any::*;
 use sync::{Arc, Mutex, MutexGuard};
@@ -24,22 +24,24 @@ pub trait Object {
 
   /// Converts an Object trait object to an Any trait object.
   ///
-  /// This is useful for attempting to convert an Object trait object into its
-  /// original type, for example, getting the Symbol within an Object, via
-  /// `as_ref()` on the resulting `&Any`.
+  /// You probably don't need to do this, as `AnyRefExt` is implemented for all
+  /// `Object` references, which provides generic `is<T>()` and `as_ref<T>()`
+  /// directly. It only exists in order to implement it.
   ///
-  /// # Example
-  ///
-  ///     let maybe_symbol: Option<&Symbol> = object.as_any().as_ref();
-  ///     match maybe_symbol {
-  ///       Some(symbol) => println!("{}", symbol.name(&machine.symbol_map)),
-  ///       None         => fail!("expected Symbol")
-  ///     }
+  /// Additionally, `TypedRefGuard` exists, which is easier to use from an
+  /// `ObjectRef`.
   fn as_any<'a>(&'a self) -> &'a Any {
     self as &Any
   }
 
   /// Same as `as_any()` but for a mutable ref.
+  ///
+  /// You probably don't need to do this, as `AnyMutRefExt` is implemented for
+  /// all `Object` references, which provides generic `as_mut<T>()` directly. It
+  /// only exists in order to implement it.
+  ///
+  /// Additionally, `TypedRefGuard` exists, which is easier to use from an
+  /// `ObjectRef`.
   fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
     self as &mut Any
   }
@@ -60,6 +62,22 @@ pub trait Object {
   /// See the spec for rationale.
   fn default_receiver(&self) -> NativeReceiver {
     lookup_receiver
+  }
+}
+
+impl<'a> AnyRefExt<'a> for &'a Object {
+  fn is<T:'static>(self) -> bool {
+    self.as_any().is::<T>()
+  }
+
+  fn as_ref<T:'static>(self) -> Option<&'a T> {
+    self.as_any().as_ref::<T>()
+  }
+}
+
+impl<'a> AnyMutRefExt<'a> for &'a mut Object {
+  fn as_mut<T:'static>(self) -> Option<&'a mut T> {
+    self.as_any_mut().as_mut::<T>()
   }
 }
 
@@ -186,7 +204,7 @@ impl<'a> ObjectRefGuard<'a> {
   /// to be used again.
   pub fn try_cast<T:'static>(self)
                   -> Result<TypedRefGuard<'a, T>, ObjectRefGuard<'a>> {
-    if self.deref().as_any().is::<T>() {
+    if self.deref().is::<T>() {
       Ok(TypedRefGuard { object_ref_guard: self })
     } else {
       Err(self)
@@ -238,13 +256,13 @@ impl<'a, T> TypedRefGuard<'a, T> {
 
 impl<'a, T:'static> Deref<T> for TypedRefGuard<'a, T> {
   fn deref<'a>(&'a self) -> &'a T {
-    self.object_ref_guard.deref().as_any().as_ref::<T>().unwrap()
+    self.object_ref_guard.deref().as_ref::<T>().unwrap()
   }
 }
 
 impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
   fn deref_mut<'a>(&'a mut self) -> &'a mut T {
-    self.object_ref_guard.deref_mut().as_any_mut().as_mut::<T>().unwrap()
+    self.object_ref_guard.deref_mut().as_mut::<T>().unwrap()
   }
 }
 

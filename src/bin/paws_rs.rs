@@ -2,8 +2,6 @@ extern crate paws;
 
 use std::io;
 use std::os;
-use std::any::AnyMutRefExt;
-
 use paws::cpaws;
 use paws::machine::{Machine, Combination};
 use paws::object::{Object, ObjectRef};
@@ -34,10 +32,8 @@ fn main() {
         let mut maybe_combination: Option<Combination>;
 
         {
-          let mut execution_ref_borrow = execution_ref.lock();
-
-          let execution: &mut Execution =
-            execution_ref_borrow.as_any_mut().as_mut().unwrap();
+          let mut execution = execution_ref.lock().try_cast::<Execution>()
+                                .ok().unwrap();
 
           execution.fmt_paws(&mut stdout)
             .ok().expect("fmt_paws did not succeed!");
@@ -55,18 +51,18 @@ fn main() {
             match combination.subject {
               None => stdout.write_str("#<locals>").unwrap(),
               Some(ref subject_ref) => {
-                let subject_borrow = subject_ref.lock();
+                let subject = subject_ref.lock();
 
-                subject_borrow.deref().fmt_paws(&mut stdout)
+                subject.deref().fmt_paws(&mut stdout)
                   .ok().expect("fmt_paws did not succeed!");
               }
             }
 
             stdout.write_str(" <- ").unwrap();
 
-            let message_borrow = combination.message.lock();
+            let message = combination.message.lock();
 
-            message_borrow.deref().fmt_paws(&mut stdout)
+            message.deref().fmt_paws(&mut stdout)
               .ok().expect("fmt_paws did not succeed!");
 
             stdout.write_str(")").unwrap();
