@@ -22,6 +22,24 @@ pub trait Object {
   /// Formats a Paws Object for debugging purposes.
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()>;
 
+  /// Get access to the Object's metadata, including members and such.
+  fn meta<'a>(&'a self) -> &'a Meta;
+
+  /// Get mutable access to the Object's metadata.
+  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
+
+  /// Returns a NativeReceiver that implements the 'default receiver' of an
+  /// Object type. The `self` reference given should be ignored; it is purely
+  /// for typing through a trait object. Additionally, an Object implementation
+  /// should probably have another way to access this receiver function.
+  ///
+  /// The default implementation is provided by `lookup_receiver`.
+  ///
+  /// See the spec for rationale.
+  fn default_receiver(&self) -> NativeReceiver {
+    lookup_receiver
+  }
+
   /// Converts an Object trait object to an Any trait object.
   ///
   /// You probably don't need to do this, as `AnyRefExt` is implemented for all
@@ -44,24 +62,6 @@ pub trait Object {
   /// `ObjectRef`.
   fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
     self as &mut Any
-  }
-
-  /// Get access to the Object's metadata, including members and such.
-  fn meta<'a>(&'a self) -> &'a Meta;
-
-  /// Get mutable access to the Object's metadata.
-  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
-
-  /// Returns a NativeReceiver that implements the 'default receiver' of an
-  /// Object type. The `self` reference given should be ignored; it is purely
-  /// for typing through a trait object. Additionally, an Object implementation
-  /// should probably have another way to access this receiver function.
-  ///
-  /// The default implementation is provided by `lookup_receiver`.
-  ///
-  /// See the spec for rationale.
-  fn default_receiver(&self) -> NativeReceiver {
-    lookup_receiver
   }
 }
 
