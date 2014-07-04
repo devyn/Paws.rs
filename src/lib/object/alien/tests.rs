@@ -1,7 +1,7 @@
 use machine::*;
 use object::*;
 use object::alien::Alien;
-use object::empty::Empty;
+use object::thing::Thing;
 
 use std::any::*;
 
@@ -83,7 +83,7 @@ fn call_pattern_alien() {
     React(caller, machine.symbol(cat_str.as_slice()))
   }
 
-  let caller_ref = ObjectRef::new(box Empty::new());
+  let caller_ref = ObjectRef::new(box Thing::new());
 
   let alien_ref = ObjectRef::new(box
                     Alien::new_call_pattern(routine, 3));

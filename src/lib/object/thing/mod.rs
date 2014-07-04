@@ -1,4 +1,4 @@
-//! Empties contain Object metadata and nothing more.
+//! Things contain Object metadata and nothing more.
 
 use object::*;
 
@@ -11,33 +11,33 @@ use std::io::IoResult;
 /// minimum is still quite a bit, and this lets you use that without any
 /// specialized meaning attached.
 #[deriving(Clone)]
-pub struct Empty {
+pub struct Thing {
   meta: Meta
 }
 
-impl Empty {
-  /// Creates a new Empty containing empty Meta (`Meta::new()`).
-  pub fn new() -> Empty {
-    Empty { meta: Meta::new() }
+impl Thing {
+  /// Creates a new Thing containing empty Meta (`Meta::new()`).
+  pub fn new() -> Thing {
+    Thing { meta: Meta::new() }
   }
 
-  /// Creates a new Empty containing a Nucleus-lookup-style pair.
+  /// Creates a new Thing containing a Nucleus-lookup-style pair.
   ///
   /// The resulting members structure looks like this:
   ///
   /// 1. A hole (`None`).
   /// 2. Non-child: `key`.
   /// 3. Non-child: `value`.
-  pub fn new_pair(key: ObjectRef, value: ObjectRef) -> Empty {
-    let mut empty = Empty::new();
+  pub fn new_pair(key: ObjectRef, value: ObjectRef) -> Thing {
+    let mut thing = Thing::new();
 
-    empty.meta.members.set(1, key);
-    empty.meta.members.set(2, value);
+    thing.meta.members.set(1, key);
+    thing.meta.members.set(2, value);
 
-    empty
+    thing
   }
 
-  /// Creates a new Empty containing a Nucleus-lookup-style pair, where the
+  /// Creates a new Thing containing a Nucleus-lookup-style pair, where the
   /// value is marked as a child relationship.
   ///
   /// The resulting members structure looks like this:
@@ -45,19 +45,19 @@ impl Empty {
   /// 1. A hole (`None`).
   /// 2. Non-child: `key`.
   /// 3. Child: `value`.
-  pub fn new_pair_to_child(key: ObjectRef, value: ObjectRef) -> Empty {
-    let mut empty = Empty::new();
+  pub fn new_pair_to_child(key: ObjectRef, value: ObjectRef) -> Thing {
+    let mut thing = Thing::new();
 
-    empty.meta.members.set(1, key);
-    empty.meta.members.set_child(2, value);
+    thing.meta.members.set(1, key);
+    thing.meta.members.set_child(2, value);
 
-    empty
+    thing
   }
 }
 
-impl Object for Empty {
+impl Object for Thing {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
-    write!(writer, "Empty")
+    write!(writer, "Thing")
   }
 
   fn meta<'a>(&'a self) -> &'a Meta {

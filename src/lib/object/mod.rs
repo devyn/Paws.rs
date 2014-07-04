@@ -7,7 +7,7 @@ use machine::Machine;
 
 pub use object::members::Members;
 
-pub mod empty;
+pub mod thing;
 pub mod symbol;
 pub mod execution;
 pub mod alien;
@@ -315,8 +315,8 @@ pub type NativeReceiver = fn (&Machine, Params) -> Reaction;
 
 /// Parameters to be given to a receiver.
 ///
-/// If the receiver were non-native, it would be sent these items as an empty
-/// object with the members `[, caller, subject, message]`, so this structure
+/// If the receiver were non-native, it would be sent these items as a Thing
+/// with the members `[, caller, subject, message]`, so this structure
 /// represents that without the overhead of constructing an object.
 #[deriving(Clone, Eq, PartialEq)]
 pub struct Params {

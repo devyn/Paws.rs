@@ -1,5 +1,5 @@
 use object::*;
-use object::empty::Empty;
+use object::thing::Thing;
 use object::symbol::Symbol;
 
 use machine::*;
@@ -8,8 +8,8 @@ use sync::Arc;
 
 #[test]
 fn meta_member_relationships() {
-  let object1 = ObjectRef::new(box Empty::new());
-  let object2 = ObjectRef::new(box Empty::new());
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
 
   let mut meta = Meta::new();
 
@@ -26,8 +26,8 @@ fn meta_member_relationships() {
 
 #[test]
 fn meta_member_push_pair() {
-  let key = ObjectRef::new(box Empty::new());
-  let val = ObjectRef::new(box Empty::new());
+  let key = ObjectRef::new(box Thing::new());
+  let val = ObjectRef::new(box Thing::new());
 
   let mut meta = Meta::new();
 
@@ -73,7 +73,7 @@ fn meta_member_push_pair() {
 
 #[test]
 fn object_ref_guards() {
-  let object_ref = ObjectRef::new(box Empty::new());
+  let object_ref = ObjectRef::new(box Thing::new());
 
   assert!(object_ref.lock().meta().members.len() == 0);
 }
@@ -83,7 +83,7 @@ fn typed_ref_guards() {
   let sym        = Arc::new("foo".to_string());
   let object_ref = ObjectRef::new_symbol(box Symbol::new(sym.clone()));
 
-  assert!(object_ref.lock().try_cast::<Empty>().is_err());
+  assert!(object_ref.lock().try_cast::<Thing>().is_err());
   assert!(object_ref.lock().try_cast::<Symbol>().is_ok());
 
   assert!(object_ref.lock().try_cast::<Symbol>()
@@ -128,26 +128,26 @@ fn symbol_ref_eq_as_symbol() {
 
 #[test]
 fn non_symbol_ref_eq_as_symbol_is_false() {
-  let empty1_ref = ObjectRef::new(box Empty::new());
-  let empty2_ref = ObjectRef::new(box Empty::new());
+  let thing1_ref = ObjectRef::new(box Thing::new());
+  let thing2_ref = ObjectRef::new(box Thing::new());
 
   // Identity should be false here, because they aren't symbols
-  assert!(!empty1_ref.eq_as_symbol(&empty1_ref));
-  assert!(!empty2_ref.eq_as_symbol(&empty2_ref));
+  assert!(!thing1_ref.eq_as_symbol(&thing1_ref));
+  assert!(!thing2_ref.eq_as_symbol(&thing2_ref));
 
   // These should all be false too
-  assert!(!empty1_ref.eq_as_symbol(&empty2_ref));
-  assert!(!empty2_ref.eq_as_symbol(&empty1_ref));
+  assert!(!thing1_ref.eq_as_symbol(&thing2_ref));
+  assert!(!thing2_ref.eq_as_symbol(&thing1_ref));
 }
 
 #[test]
 fn mixed_refs_eq_as_symbol_is_false() {
-  let empty_ref  = ObjectRef::new(box Empty::new());
+  let thing_ref  = ObjectRef::new(box Thing::new());
   let symbol_ref = ObjectRef::new(box Symbol::new(
                      Arc::new("foo".to_string())));
 
-  assert!(!empty_ref.eq_as_symbol(&symbol_ref));
-  assert!(!symbol_ref.eq_as_symbol(&empty_ref));
+  assert!(!thing_ref.eq_as_symbol(&symbol_ref));
+  assert!(!symbol_ref.eq_as_symbol(&thing_ref));
 }
 
 struct LookupReceiverTestEnv {
@@ -166,17 +166,17 @@ struct LookupReceiverTestEnv {
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let machine = Machine::new();
 
-  let caller_ref  = ObjectRef::new(box Empty::new());
+  let caller_ref  = ObjectRef::new(box Thing::new());
 
-  let obj_key_ref = ObjectRef::new(box Empty::new());
-  let obj_val_ref = ObjectRef::new(box Empty::new());
+  let obj_key_ref = ObjectRef::new(box Thing::new());
+  let obj_val_ref = ObjectRef::new(box Thing::new());
 
   let sym_key_ref = machine.symbol("foo");
   let sym_key_sym = sym_key_ref.symbol_ref().unwrap().clone();
   let sym_val_ref = machine.symbol("bar");
 
   let target_ref = {
-    let mut target = box Empty::new();
+    let mut target = box Thing::new();
 
     target.meta_mut().members.push_pair(
       obj_key_ref.clone(), obj_val_ref.clone());
@@ -249,7 +249,7 @@ fn lookup_receiver_miss_object_key() {
   let reaction = lookup_receiver(&mut env.machine, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
-    message: ObjectRef::new(box Empty::new())
+    message: ObjectRef::new(box Thing::new())
   });
 
   match reaction {

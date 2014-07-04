@@ -8,7 +8,7 @@ use object::ObjectRefGuard;
 use object::{Reaction, React, Yield};
 use object::Params;
 
-use object::empty::Empty;
+use object::thing::Thing;
 use object::symbol::{Symbol, SymbolMap};
 use object::execution::Execution;
 use object::alien::Alien;
@@ -62,7 +62,7 @@ impl Machine {
   }
 
   /// Creates an Execution object from the given `Script` with a 'locals' member
-  /// pointing at a new `Empty`.
+  /// pointing at a new `Thing`.
   ///
   /// This is the recommended way to create new Executions.
   pub fn execution(&self, root: Script) -> ObjectRef {
@@ -71,7 +71,7 @@ impl Machine {
     let locals_key = ObjectRef::new_symbol(box Symbol::new(
                          self.locals_sym.symbol_ref().unwrap().clone()));
 
-    let locals_ref = ObjectRef::new(box Empty::new());
+    let locals_ref = ObjectRef::new(box Thing::new());
 
     execution.meta_mut().members.push_pair_to_child(locals_key, locals_ref);
 
@@ -201,7 +201,7 @@ impl Machine {
             // If it is, we construct a params object
             // `[, caller, subject, message]` and `React` the receiver with the
             // params object as the response.
-            let mut params = box Empty::new();
+            let mut params = box Thing::new();
 
             params.meta_mut().members.set(1, caller);
             params.meta_mut().members.set(2, subject);
