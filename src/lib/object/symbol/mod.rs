@@ -1,4 +1,4 @@
-//! Paws symbols are atoms that are interned into a global table.
+//! Symbols are atoms that are interned into a machine-local table.
 
 use object::*;
 
