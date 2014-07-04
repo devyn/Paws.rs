@@ -28,14 +28,14 @@ pub struct Alien {
 
   /// Routine-specific (non-generic) data. Often used to store multiple
   /// arguments when implementing the nuclear call-pattern.
-  pub data:    Box<Any+'static+Send+Share>,
+  pub data:    Box<Data+'static+Send+Share>,
 
       meta:    Meta
 }
 
 impl Alien {
   /// Construct an Alien around a given `Routine`.
-  pub fn new(routine: Routine, data: Box<Any+'static+Send+Share>) -> Alien {
+  pub fn new(routine: Routine, data: Box<Data+'static+Send+Share>) -> Alien {
     Alien {
       routine: routine,
       data:    data,
@@ -55,7 +55,7 @@ impl Alien {
     };
 
     Alien::new(call_pattern_alien_routine,
-               call_pattern_data as Box<Any+'static+Send+Share>)
+               call_pattern_data as Box<Data+'static+Send+Share>)
   }
 }
 
@@ -74,6 +74,61 @@ impl Object for Alien {
 
   fn default_receiver(&self) -> NativeReceiver {
     stage_receiver
+  }
+}
+
+impl Clone for Alien {
+  fn clone(&self) -> Alien {
+    Alien {
+      routine: self.routine,
+      data:    self.data.clone_to_data(),
+      meta:    self.meta.clone()
+    }
+  }
+}
+
+/// Types that are acceptable as data for an Alien.
+///
+/// Used to get around the restriction that `clone()` can't be called on a trait
+/// object, to allow `Alien` to still be cloneable. This is a huge hack.
+pub trait Data {
+  /// Clones and boxes into a `Data` trait object.
+  fn clone_to_data(&self) -> Box<Data+'static+Send+Share>;
+
+  /// Gets this Data as an Any reference. Not generally necessary as `AnyRefExt`
+  /// is implemented, but it is necessary in order to implement `AnyRefExt` in
+  /// the first place.
+  fn as_any<'a>(&'a self) -> &'a Any {
+    self as &Any
+  }
+
+  /// Gets this Data as a mutable Any reference. Not generally necessary as
+  /// `AnyMutRefExt` is implemented, but it is necessary in order to implement
+  /// `AnyMutRefExt` in the first place.
+  fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
+    self as &mut Any
+  }
+}
+
+impl<T: 'static+Clone+Send+Share> Data for T {
+  fn clone_to_data(&self) -> Box<Data+'static+Send+Share> {
+    box self.clone() as Box<Data+'static+Send+Share>
+  }
+}
+
+impl<'a> AnyRefExt<'a> for &'a Data {
+  fn is<T:'static>(self) -> bool {
+    self.as_any().is::<T>()
+  }
+
+  fn as_ref<T:'static>(self) -> Option<&'a T> {
+    self.as_any().as_ref::<T>()
+  }
+}
+
+impl<'a> AnyMutRefExt<'a> for &'a mut Data {
+  fn as_mut<T:'static>(self) -> Option<&'a mut T> {
+    self.as_any_mut().as_mut::<T>()
   }
 }
 
@@ -110,11 +165,10 @@ pub type Routine = fn <'a>(
 ///         -> React(caller, hi) ...
 ///
 ///     caller <- hi
-pub type CallPatternRoutine = fn<'a>(
-                                 machine: &Machine,
-                                 caller:  ObjectRef,
-                                 args:    &[ObjectRef])
-                                 -> Reaction;
+pub type CallPatternRoutine = fn (machine: &Machine,
+                                  caller:  ObjectRef,
+                                  args:    &[ObjectRef])
+                                  -> Reaction;
 
 /// Internal state for call pattern wrapper.
 struct CallPatternData {
@@ -123,6 +177,18 @@ struct CallPatternData {
   complete:  bool,
   remaining: uint,
   routine:   CallPatternRoutine
+}
+
+impl Clone for CallPatternData {
+  fn clone(&self) -> CallPatternData {
+    CallPatternData {
+      caller:    self.caller.clone(),
+      args:      self.args.clone(),
+      complete:  self.complete,
+      remaining: self.remaining,
+      routine:   self.routine
+    }
+  }
 }
 
 /// Function that performs call pattern wrapper.
