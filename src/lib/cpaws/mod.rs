@@ -98,29 +98,29 @@ fn parse_nodes_until(state: &mut ParserState, terminator: Option<char>)
       // Skip whitespace
       Some(c) if is_whitespace(c) => (),
 
-      // (expression)
-      Some('(') =>
+      // [expression]
+      Some('[') =>
         nodes.push(Expression(
-          try!(parse_nodes_until(state, Some(')'))))),
+          try!(parse_nodes_until(state, Some(']'))))),
 
-      // {expression}
+      // {execution}
       Some('{') =>
         nodes.push(Execution(
           try!(parse_nodes_until(state, Some('}'))))),
 
-      // "string"
+      // "symbol"
       Some('"') =>
         nodes.push(Symbol(
           try!(parse_string_until(state, '"')))),
 
-      // “string”
+      // “symbol”
       Some('“') =>
         nodes.push(Symbol(
           try!(parse_string_until(state, '”')))),
 
       // If we get any terminators that we *weren't* expecting, those are
       // errors.
-      Some(c @ ')') | Some(c @ '}') | Some(c @ '”') =>
+      Some(c @ ']') | Some(c @ '}') | Some(c @ '”') =>
         return state.error(format!("unexpected terminator '{}'", c)),
 
       // Any other character is the start of a bare symbol
@@ -196,7 +196,7 @@ fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> String {
       Some(c) =>
         match *c {
           // A bare symbol is ended by any special characters or whitespace
-          '{' | '}' | '(' | ')'  => break,
+          '{' | '}' | '[' | ']'  => break,
           '"' | '“' | '”'        => break,
           _ if is_whitespace(*c) => break,
 

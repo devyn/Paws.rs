@@ -43,7 +43,7 @@ fn parse_nodes_unicode_quotes() {
 #[test]
 fn parse_nodes_expression() {
   test_parse_nodes(
-    "a (b c) d",
+    "a [b c] d",
     Ok(vec![
       Symbol("a".to_string()),
       Expression(vec![
@@ -77,8 +77,8 @@ fn parse_nodes_missing_terminators() {
     Err("<test_case>:1:1: expected '”' before end-of-input".to_string())
   );
   test_parse_nodes(
-    "(",
-    Err("<test_case>:1:1: expected ')' before end-of-input".to_string())
+    "[",
+    Err("<test_case>:1:1: expected ']' before end-of-input".to_string())
   );
   test_parse_nodes(
     "{",
@@ -93,8 +93,8 @@ fn parse_nodes_unexpected_terminators() {
     Err("<test_case>:1:1: unexpected terminator '”'".to_string())
   );
   test_parse_nodes(
-    ")",
-    Err("<test_case>:1:1: unexpected terminator ')'".to_string())
+    "]",
+    Err("<test_case>:1:1: unexpected terminator ']'".to_string())
   );
   test_parse_nodes(
     "}",

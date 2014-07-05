@@ -14,4 +14,4 @@
 
 Try this, for now:
 
-    $ echo "implementation void() hello world (implementation stop())" | RUST_LOG="paws=4" build/paws_rs
+    $ echo "implementation void[] hello world [implementation stop[]]" | RUST_LOG="paws=4" build/paws_rs

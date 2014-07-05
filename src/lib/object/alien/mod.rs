@@ -166,15 +166,15 @@ pub type Routine = fn <'a>(
 /// cPaws code (where `alien` is a call-pattern alien that takes a caller and 2
 /// args):
 ///
-///     alien() hello world
+///     alien[] hello world
 ///
 /// Assume this returns `hi`. Timeline:
 ///
-///     alien <- ()    ... {caller = ()}        ... caller <- alien
+///     alien <- []    ... {caller = []}        ... caller <- alien
 ///     alien <- hello ... {args   push(hello)} ... caller <- alien
 ///     alien <- world ... {args   push(world)} ...
 ///
-///       call_pattern_routine(machine, caller = (), args = [hello, world])
+///       call_pattern_routine(machine, caller = [], args = [hello, world])
 ///         -> React(caller, hi) ...
 ///
 ///     caller <- hi

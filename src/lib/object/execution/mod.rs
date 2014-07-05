@@ -53,7 +53,7 @@ impl Execution {
   /// # Arguments
   ///
   /// - **self_ref**: The reference to this Execution. Used for interpreting an
-  /// empty expression; `()` results in a reference to this Execution.
+  /// empty expression; `[]` results in a reference to this Execution.
   /// - **response**: The object this Execution is being sent.
   pub fn advance(&mut self, self_ref: ObjectRef,
                  response: ObjectRef) -> Option<Combination> {

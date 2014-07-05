@@ -47,7 +47,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
 ///
 /// # Example
 ///
-///     implementation void() a b c (foo) (bar baz)
+///     implementation void[] a b c [foo] [bar baz]
 pub fn void(machine: &Machine) -> Alien {
   #[deriving(Clone)]
   struct VoidCaller(Option<ObjectRef>);
@@ -90,7 +90,7 @@ pub fn void(machine: &Machine) -> Alien {
 ///
 /// # Example
 ///
-///     implementation stop()
+///     implementation stop[]
 pub fn stop(machine: &Machine,
             caller:  ObjectRef,
             args:    &[ObjectRef])
