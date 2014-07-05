@@ -89,7 +89,7 @@ fn machine_can_combine_via_indirect_default_receiver() {
     // it.
     let mut caller = caller_ref.lock();
     
-    caller.meta_mut().receiver = Some(other_ref);
+    caller.meta_mut().receiver = ObjectReceiver(other_ref);
 
     caller.meta_mut().members.push_pair_to_child(
       key_ref.clone(), value_ref.clone());
@@ -162,11 +162,11 @@ fn machine_can_combine_via_executionish_receiver() {
     }
   };
 
-  other_ref.lock().meta_mut().receiver = Some(execution_ref.clone());
+  other_ref.lock().meta_mut().receiver = ObjectReceiver(execution_ref.clone());
 
   check_reaction(execution_ref);
 
-  other_ref.lock().meta_mut().receiver = Some(alien_ref.clone());
+  other_ref.lock().meta_mut().receiver = ObjectReceiver(alien_ref.clone());
 
   check_reaction(alien_ref);
 }

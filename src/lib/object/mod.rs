@@ -28,18 +28,6 @@ pub trait Object {
   /// Get mutable access to the Object's metadata.
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
 
-  /// Returns a NativeReceiver that implements the 'default receiver' of an
-  /// Object type. The `self` reference given should be ignored; it is purely
-  /// for typing through a trait object. Additionally, an Object implementation
-  /// should probably have another way to access this receiver function.
-  ///
-  /// The default implementation is provided by `lookup_receiver`.
-  ///
-  /// See the spec for rationale.
-  fn default_receiver(&self) -> NativeReceiver {
-    lookup_receiver
-  }
-
   /// Converts an Object trait object to an Any trait object.
   ///
   /// You probably don't need to do this, as `AnyRefExt` is implemented for all
@@ -311,25 +299,55 @@ pub struct Meta {
   /// their child members, and so on.
   pub members:  Members,
 
-  /// The Object's custom receiver, if present. See `Machine::combine()`.
-  pub receiver: Option<ObjectRef>
+  /// The Object's receiver (combination handler). See `Machine::combine()`.
+  pub receiver: Receiver
 }
 
 impl Meta {
   /// Helpful constructor with some sensible default values.
   ///
-  /// * `members`: empty
-  /// * `receiver`: `None`
+  /// * **members**: empty
+  /// * **receiver**: `NativeReceiver(lookup_receiver)`
   pub fn new() -> Meta {
     Meta {
       members:  Members::new(),
-      receiver: None
+      receiver: NativeReceiver(lookup_receiver)
     }
+  }
+
+  /// Constructs a `Meta` exactly like `new()` does but with a given function to
+  /// set as the receiver (`NativeReceiver`).
+  pub fn with_receiver(receiver: fn (&Machine, Params) -> Reaction) -> Meta {
+    let mut meta = Meta::new();
+
+    meta.receiver = NativeReceiver(receiver);
+    meta
   }
 }
 
-/// The lowest level handler for a combination.
-pub type NativeReceiver = fn (&Machine, Params) -> Reaction;
+/// Specifies how a combination against an Object should be handled.
+pub enum Receiver {
+  /// If the object pointed to is queueable (an `Execution` or `Alien`), queue
+  /// it with a `Params`-style Thing. Otherwise, look at its receiver
+  /// recursively until a queueable or native receiver is found.
+  ObjectReceiver(ObjectRef),
+
+  /// Call this function immediately to get the appropriate `Reaction` to the
+  /// combination, with the given `Machine` and `Params`.
+  NativeReceiver(fn (&Machine, Params) -> Reaction)
+}
+
+impl Clone for Receiver {
+  fn clone(&self) -> Receiver {
+    match *self {
+      ObjectReceiver(ref object_ref) =>
+        ObjectReceiver(object_ref.clone()),
+
+      NativeReceiver(function) =>
+        NativeReceiver(function)
+    }
+  }
+}
 
 /// Parameters to be given to a receiver.
 ///

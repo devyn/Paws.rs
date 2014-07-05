@@ -37,7 +37,7 @@ impl Execution {
       pristine: true,
       pc:       Vec::new(),
       stack:    Vec::new(),
-      meta:     Meta::new()
+      meta:     Meta::with_receiver(stage_receiver)
     }
   }
 
@@ -232,10 +232,6 @@ impl Object for Execution {
 
   fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
     &mut self.meta
-  }
-
-  fn default_receiver(&self) -> NativeReceiver {
-    stage_receiver
   }
 }
 

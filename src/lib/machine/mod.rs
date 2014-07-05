@@ -6,6 +6,7 @@ use object::Object;
 use object::ObjectRef;
 use object::ObjectRefGuard;
 use object::{Reaction, React, Yield};
+use object::{NativeReceiver, ObjectReceiver};
 use object::Params;
 
 use object::thing::Thing;
@@ -172,14 +173,12 @@ impl Machine {
       let current_target     = current_target_ref.lock();
 
       match current_target.deref().meta().receiver.clone() {
-        // If the receiver is None, then we want to use this object's default
-        // receiver.
-        None => {
-          let receiver = current_target.deref().default_receiver();
-
+        // If the receiver is a NativeReceiver, then call the function it
+        // contains.
+        NativeReceiver(function) => {
           drop(current_target); // Release the lock ASAP.
 
-          return receiver(self, Params {
+          return function(self, Params {
             caller:  caller,
             subject: subject,
             message: message
@@ -188,7 +187,7 @@ impl Machine {
 
         // Otherwise, we need to check if this receiver is queueable (Execution
         // or Alien) or not.
-        Some(receiver) => {
+        ObjectReceiver(receiver) => {
           drop(current_target); // Release the lock ASAP.
 
           let queueable = {
