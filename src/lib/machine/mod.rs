@@ -14,6 +14,9 @@ use object::symbol::{Symbol, SymbolMap};
 use object::execution::Execution;
 use object::alien::Alien;
 
+use system::implementation;
+use system::infrastructure;
+
 use util::queue::Queue;
 
 use std::any::AnyRefExt;
@@ -36,6 +39,10 @@ pub struct Machine {
   /// The receive-end of the main execution realization queue. Reactors pull
   /// from this.
       queue:      Arc<Queue<Realization>>,
+
+  /// The system interface. See `paws::system`. Lazily generated, because many
+  /// tests don't need it.
+      system:     Arc<Mutex<Option<System>>>,
 }
 
 impl Machine {
@@ -49,7 +56,9 @@ impl Machine {
       symbol_map: Arc::new(Mutex::new(symbol_map)),
       locals_sym: locals_sym,
 
-      queue:      Arc::new(Queue::new())
+      queue:      Arc::new(Queue::new()),
+
+      system:     Arc::new(Mutex::new(None))
     }
   }
 
@@ -79,14 +88,38 @@ impl Machine {
     ObjectRef::new(execution)
   }
 
+  /// Exposes the system interface (`infrastructure` and `implementation`) as
+  /// members of the locals of the given Execution.
+  pub fn expose_system_to(&self, execution: &mut Execution) {
+    let System {
+          infrastructure: infrastructure,
+          implementation: implementation
+        } = self.system();
+
+    let     locals_ref = execution.meta_mut().members
+                           .lookup_pair(&self.locals_sym).unwrap();
+    let mut locals_obj = locals_ref.lock();
+    let     locals     = &mut locals_obj.meta_mut().members;
+
+    locals.push_pair(self.symbol("infrastructure"), infrastructure);
+    locals.push_pair(self.symbol("implementation"), implementation);
+  }
+
   /// Adds a realization (execution and response) to the machine's global queue,
   /// which the Machine's reactors should soon pick up as long as there is
   /// nothing blocking that execution.
   ///
   /// **Note:** if you're calling this from a receiver or Alien, you probably
   /// want to `React` instead; it's more efficient, but with a few caveats.
-  pub fn queue(&self, execution: ObjectRef, response: ObjectRef) {
+  pub fn enqueue(&self, execution: ObjectRef, response: ObjectRef) {
     self.queue.push(Realization(execution, response));
+  }
+
+  /// Gets a realization from the machine's queue, blocking until either one is
+  /// available (in which case `Some(Realization)` is returned), or the
+  /// `Machine` has been `stop()`ped (in which case `None` is returned).
+  pub fn dequeue(&self) -> Option<Realization> {
+    self.queue.shift()
   }
 
   /// Marks the machine's global queue for termination. This action is
@@ -95,6 +128,7 @@ impl Machine {
   /// Reactors may not stop immediately, but they should stop as soon as they
   /// check the global queue.
   pub fn stop(&self) {
+    debug!("*** machine stopping ***");
     self.queue.end();
   }
 
@@ -224,6 +258,8 @@ impl Machine {
   /// run standalone in any task.
   pub fn run_reactor(&self) {
 
+    debug!("start reactor");
+
     'queue:
     for Realization(mut execution_ref, mut response_ref) in self.queue.iter() {
 
@@ -236,31 +272,47 @@ impl Machine {
           Ok(mut execution) => {
             // For an Execution, we just want to advance() it and have the
             // Machine process the combination if there was one.
+
+            debug!("realize execution {} <-- {}",
+              execution_ref, response_ref);
+
             match execution.advance(execution_ref.clone(), response_ref) {
               Some(combination) =>
                 // Calls the receiver and all that jazz, resulting in a
                 // Reaction.
                 self.combine(execution.into_untyped(), combination),
 
-              None =>
+              None => {
                 // This execution is already complete, so we can't do anything;
                 // we have to go back to the queue.
+
+                debug!("yield reactor: execution already complete");
                 continue 'queue
+              }
             }
           },
 
           Err(execution_ish) =>
             match execution_ish.try_cast::<Alien>() {
-              Ok(alien) =>
+              Ok(alien) => {
                 // Aliens are a bit different. They handle unlocking themselves
                 // at a point which they see fit, so we give them the lock.
-                (alien.routine)(alien, self, response_ref),
 
-              Err(_) =>
+                debug!("realize alien     {} <-- {}",
+                  execution_ref, response_ref);
+
+                Alien::realize(alien, self, response_ref)
+              },
+
+              Err(_) => {
                 // Finally, if it was neither an Execution nor an Alien, it
                 // really doesn't belong in this queue and we'll just pretend it
                 // wasn't there.
+                
+                warn!("yield reactor: tried to realize non-queueable {}!",
+                  execution_ref);
                 continue 'queue
+              }
             }
         };
 
@@ -274,12 +326,36 @@ impl Machine {
             continue 'immediate
           },
 
-          Yield =>
+          Yield => {
             // The receiver or Alien wants us to go back to the queue,
             // potentially because it doesn't have anything ready for us right
             // now or because it intentionally doesn't want to continue.
+
+            debug!("yield reactor: explicit");
             continue 'queue
+          }
         }
+      }
+    }
+  }
+
+  /// Lazy-get the system interface.
+  fn system(&self) -> System {
+    let mut lazy_system = self.system.lock();
+
+    match lazy_system.clone() {
+      Some(system) =>
+        system,
+
+      None => {
+        let system = System {
+          infrastructure: infrastructure::make(self),
+          implementation: implementation::make(self)
+        };
+
+        *lazy_system = Some(system.clone());
+
+        system
       }
     }
   }
@@ -298,4 +374,12 @@ pub struct Combination {
 }
 
 /// Describes a Realization of an `execution` (0) with a `response` (1).
-struct Realization(ObjectRef, ObjectRef);
+#[deriving(Clone, PartialEq, Eq)]
+pub struct Realization(ObjectRef, ObjectRef);
+
+/// The system interface.
+#[deriving(Clone)]
+struct System {
+  infrastructure: ObjectRef,
+  implementation: ObjectRef
+}

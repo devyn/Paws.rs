@@ -57,6 +57,23 @@ impl Alien {
     Alien::new(call_pattern_alien_routine,
                call_pattern_data as Box<Data+'static+Send+Share>)
   }
+
+  /// Calls the Alien's routine with the given `machine` and `response`.
+  ///
+  /// # Example
+  ///
+  ///     match alien_ref.lock().try_cast::<Alien>() {
+  ///       Ok(alien) => Alien::realize(alien, &machine, response),
+  ///       Err(_)    => fail!("not an alien!")
+  ///     }
+  pub fn realize<'a>(
+                 alien:    TypedRefGuard<'a, Alien>,
+                 machine:  &Machine,
+                 response: ObjectRef)
+                 -> Reaction {
+
+    (alien.routine)(alien, machine, response)
+  }
 }
 
 impl Object for Alien {

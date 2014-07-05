@@ -18,7 +18,18 @@ pub struct Thing {
 impl Thing {
   /// Creates a new Thing containing empty Meta (`Meta::new()`).
   pub fn new() -> Thing {
-    Thing { meta: Meta::new() }
+    Thing::from_meta(Meta::new())
+  }
+
+  /// Creates a new Thing containing the given Meta.
+  ///
+  /// # Example
+  ///
+  /// Constructing a new Thing by cloning the Meta of an existing object:
+  ///
+  ///    ObjectRef::new(box Thing::from_meta(object.lock().meta().clone()))
+  pub fn from_meta(meta: Meta) -> Thing {
+    Thing { meta: meta }
   }
 
   /// Creates a new Thing containing a Nucleus-lookup-style pair.

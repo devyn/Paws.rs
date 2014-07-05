@@ -242,7 +242,7 @@ fn machine_react_stop_call() {
   // Almost ready...
   //
   // Since it's pristine we can really give it anything we want.
-  machine.queue(caller_ref.clone(), caller_ref);
+  machine.enqueue(caller_ref.clone(), caller_ref);
 
   // Let's go!
   machine.run_reactor();

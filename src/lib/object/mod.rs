@@ -3,6 +3,9 @@
 use std::any::*;
 use sync::{Arc, Mutex, MutexGuard};
 use std::io::IoResult;
+use std::fmt::Show;
+use std::fmt;
+
 use machine::Machine;
 
 pub use object::members::Members;
@@ -79,10 +82,16 @@ impl<'a> AnyMutRefExt<'a> for &'a mut Object {
 /// overridden.
 #[allow(unused_variable)]
 pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
-  let subject = params.subject.lock();
+  let lookup_result = {
+    let subject = params.subject.lock();
 
-  match subject.deref().meta().members
-               .lookup_pair(&params.message) {
+    subject.deref().meta().members.lookup_pair(&params.message)
+  };
+
+  debug!("{} <lookup_receiver> {} => {}",
+    params.subject, params.message, lookup_result);
+
+  match lookup_result {
     Some(value) =>
       React(params.caller.clone(), value),
     None =>
@@ -157,6 +166,17 @@ impl PartialEq for ObjectRef {
 }
 
 impl Eq for ObjectRef { }
+
+impl Show for ObjectRef {
+  fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
+    match self.symbol_ref {
+      Some(ref string) =>
+        write!(out, "[:{:s}]", string.as_slice()),
+      None =>
+        write!(out, "[#{:p}]", &*self.reference)
+    }
+  }
+}
 
 /// Represents exclusive access to an object.
 ///

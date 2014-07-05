@@ -16,6 +16,7 @@
 #![crate_type = "lib"]
 
 #![feature(globs)]
+#![feature(phase)]
 
 #![warn(missing_doc)]
 
@@ -23,9 +24,13 @@ extern crate collections;
 extern crate sync;
 extern crate native;
 
+#[phase(plugin, link)]
+extern crate log;
+
 pub mod cpaws;
 pub mod object;
 pub mod script;
 pub mod machine;
+pub mod system;
 
 mod util;

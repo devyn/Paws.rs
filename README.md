@@ -12,7 +12,6 @@
 
 ## Running
 
-    $ build/paws_rs
+Try this, for now:
 
-Current behavior: parses input and iterates `Execution::advance()` with a 'test'
-symbol, printing each resulting combination.
+    $ echo "implementation void() hello world (implementation stop())" | RUST_LOG="paws=4" build/paws_rs
