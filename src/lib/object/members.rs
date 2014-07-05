@@ -172,6 +172,8 @@ impl Members {
   /// * Iteration is done in reverse order; key and value are second and
   ///   third elements respectively, so result is `Some(goodbye)`
   pub fn lookup_pair(&self, key: &ObjectRef) -> Option<ObjectRef> {
+    if self.vec.is_empty() { return None }
+
     for maybe_relationship in self.vec.tail().iter().rev() {
       match maybe_relationship {
         &Some(ref relationship) => {
@@ -180,11 +182,12 @@ impl Members {
 
           if members.len() >= 3 {
             match (members.get(1), members.get(2)) {
-              (Some(rel_key), Some(rel_value)) =>
+              (Some(rel_key), Some(rel_value)) => {
                 if rel_key.to().eq_as_symbol(key) ||
                    rel_key.to() == key {
                   return Some(rel_value.to().clone())
-                },
+                }
+              },
               _ => ()
             }
           }

@@ -374,7 +374,7 @@ impl Clone for Receiver {
 /// If the receiver were non-native, it would be sent these items as a Thing
 /// with the members `[, caller, subject, message]`, so this structure
 /// represents that without the overhead of constructing an object.
-#[deriving(Clone, Eq, PartialEq)]
+#[deriving(Clone, Eq, PartialEq, Show)]
 pub struct Params {
   /// The Execution-ish object from which the receiver was invoked.
   pub caller:  ObjectRef,
@@ -391,7 +391,7 @@ pub struct Params {
 /// Indicates the result of a native operation exposed to the Paws-world, which
 /// may either be an immediate realization (`React`) or delayed/non-existent
 /// (`Yield`).
-#[deriving(Clone, Eq, PartialEq)]
+#[deriving(Clone, Eq, PartialEq, Show)]
 pub enum Reaction {
   /// Indicates that the reactor should realize the given execution and response
   /// immediately.

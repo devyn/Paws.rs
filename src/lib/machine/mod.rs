@@ -365,6 +365,7 @@ impl Machine {
 ///
 /// If the `subject` is `None`, the Combination shall be against the calling
 /// Execution's locals.
+#[deriving(Clone, PartialEq, Eq, Show)]
 pub struct Combination {
   /// The left hand side, what the `message` is combined *against*.
   pub subject: Option<ObjectRef>,

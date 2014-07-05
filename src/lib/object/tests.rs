@@ -72,6 +72,14 @@ fn meta_member_push_pair() {
 }
 
 #[test]
+fn meta_member_lookup_pair_on_empty_members() {
+  let key  = ObjectRef::new(box Thing::new());
+  let meta = Meta::new();
+
+  assert!(meta.members.lookup_pair(&key) == None);
+}
+
+#[test]
 fn object_ref_guards() {
   let object_ref = ObjectRef::new(box Thing::new());
 
