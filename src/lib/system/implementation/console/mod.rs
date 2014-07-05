@@ -65,7 +65,7 @@ pub fn print(machine: &Machine) -> Alien {
 
     match response.symbol_ref() {
       Some(string) =>
-        stdio::print(string.as_slice()),
+        stdio::println(string.as_slice()),
 
       None => () // FIXME: should probably warn
     }
