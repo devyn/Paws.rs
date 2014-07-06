@@ -2,7 +2,7 @@ BUILDDIR    = build
 RUSTC       = rustc
 RUSTDOC     = rustdoc
 
-RUSTFLAGS   = -O
+RUSTFLAGS   =
 
 LIBSRC      = src/lib/paws.rs
 LIBOUT      = ${BUILDDIR}/$(shell ${RUSTC} --crate-file-name ${LIBSRC})
@@ -30,7 +30,7 @@ test: ${TESTOUT}
 doc: ${DOCOUT}
 
 ${LIBOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
+	${RUSTC} -O ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
 	  ${LIBSRC} -o ${LIBOUT}
 
 ${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
@@ -38,7 +38,7 @@ ${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
 	  ${TESTSRC} -o ${TESTOUT}
 
 ${BINOUT}: ${BINSRC} ${LIBOUT} | ${BUILDDIR}
-	${RUSTC} ${RUSTFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
+	${RUSTC} -O ${RUSTFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
 	  ${BINSRC} -o ${BINOUT}
 
 ${DOCOUT}: ${LIBSRC} ${LIBOUT} | ${BUILDDIR}
