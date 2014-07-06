@@ -70,6 +70,22 @@ impl Alien {
                oneshot_data as Box<Data+'static+Send+Share>)
   }
 
+  /// Turn the function inside a `NativeReceiver` into an Alien.
+  ///
+  /// As is standard for receiver procedures in Nucleus, the Alien accepts
+  /// objects of the following form, and continues to do so indefinitely:
+  ///
+  /// 1. Ignored (noughty).
+  /// 2. Caller.
+  /// 3. Subject.
+  /// 4. Message.
+  pub fn from_native_receiver(receiver: fn (&Machine, Params) -> Reaction)
+                              -> Alien {
+
+    Alien::new(native_receiver_alien_routine,
+               box NativeReceiverData(receiver))
+  }
+
   /// Calls the Alien's routine with the given `machine` and `response`.
   ///
   /// # Example
@@ -316,4 +332,52 @@ fn oneshot_alien_routine<'a>(
   drop(alien);
 
   routine(machine, response)
+}
+
+/// Internal state for native receiver wrapper.
+struct NativeReceiverData(fn (&Machine, Params) -> Reaction);
+
+impl Clone for NativeReceiverData {
+  fn clone(&self) -> NativeReceiverData {
+    let NativeReceiverData(receiver) = *self;
+    NativeReceiverData(receiver)
+  }
+}
+
+/// Function that performs native receiver wrapper.
+fn native_receiver_alien_routine<'a>(
+                                 mut alien: TypedRefGuard<'a, Alien>,
+                                 machine:   &Machine,
+                                 response:  ObjectRef)
+                                 -> Reaction {
+
+  let NativeReceiverData(receiver) =
+    *alien.data.as_mut::<NativeReceiverData>().unwrap();
+
+  drop(alien);
+
+  let params = {
+    let params_obj = response.lock();
+    let members    = &params_obj.deref().meta().members;
+
+    match (members.get(1), members.get(2), members.get(3)) {
+      (Some(caller), Some(subject), Some(message)) =>
+        Params {
+          caller:  caller.to().clone(),
+          subject: subject.to().clone(),
+          message: message.to().clone()
+        },
+
+      _ => {
+        // Malformed. Warn and yield.
+        warn!(concat!("native_receiver_alien_routine received",
+                      " malformed params object {}"),
+              response);
+
+        return Yield
+      }
+    }
+  };
+
+  receiver(machine, params)
 }
