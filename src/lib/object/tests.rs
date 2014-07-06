@@ -7,44 +7,282 @@ use machine::*;
 use sync::Arc;
 
 #[test]
-fn meta_member_relationships() {
+fn members_set_and_get() {
   let object1 = ObjectRef::new(box Thing::new());
   let object2 = ObjectRef::new(box Thing::new());
 
-  let mut meta = Meta::new();
+  let mut members = Members::new();
 
-  meta.members.push(object1.clone());
+  members.set(2, object2.clone());
 
-  meta.members.push_child(object2.clone());
+  assert!(!members.get(2).unwrap().is_child());
+  assert!( members.get(2).unwrap().to() == &object2);
 
-  assert!(!meta.members.get(1).unwrap().is_child());
-  assert!( meta.members.get(1).unwrap().to() == &object1);
+  assert!( members.get(1).is_none());
+  assert!( members.get(0).is_none());
+  assert!( members.get(3).is_none());
 
-  assert!( meta.members.get(2).unwrap().is_child());
-  assert!( meta.members.get(2).unwrap().to() == &object2);
+  members.set_child(1, object1.clone());
+
+  assert!( members.get(1).unwrap().is_child());
+  assert!( members.get(1).unwrap().to() == &object1);
+
+  assert!( members.get(0).is_none());
+  assert!( members.get(3).is_none());
+
+  assert!( members.set_child(2, object1.clone()) ==
+             Some(Relationship::new(object2)) );
+
+  assert!( members.get(2).unwrap().to() == &object1);
 }
 
 #[test]
-fn meta_member_push_pair() {
+fn members_iter() {
+  let object0 = ObjectRef::new(box Thing::new());
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object0.clone())));
+  members.vec.push(Some(Relationship::new(object1.clone())));
+  members.vec.push(Some(Relationship::new(object2.clone())));
+
+  let mut iter = members.iter();
+
+  // Skips index 0 (noughty)
+  assert!(iter.next().unwrap() == &Some(Relationship::new(object1)));
+  assert!(iter.next().unwrap() == &Some(Relationship::new(object2)));
+  assert!(iter.next().is_none());
+}
+
+#[test]
+fn members_own_and_disown() {
+  let object = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object.clone())));
+
+  assert!(!members.vec.get(0).get_ref().is_child());
+
+  members.own(0);
+
+  assert!( members.vec.get(0).get_ref().is_child());
+
+  members.disown(0);
+
+  assert!(!members.vec.get(0).get_ref().is_child());
+}
+
+#[test]
+fn members_push() {
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.push(      object1.clone());
+  members.push_child(object2.clone());
+
+  assert!(!members.vec.get(1).get_ref().is_child());
+  assert!( members.vec.get(1).get_ref().to() == &object1);
+
+  assert!( members.vec.get(2).get_ref().is_child());
+  assert!( members.vec.get(2).get_ref().to() == &object2);
+}
+
+#[test]
+fn members_pop() {
+  let object0 = ObjectRef::new(box Thing::new());
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object0.clone())));
+  members.vec.push(Some(Relationship::new(object1.clone())));
+  members.vec.push(Some(Relationship::new(object2.clone())));
+
+  assert!(members.pop() == Some(Relationship::new(object2)));
+  assert!(members.pop() == Some(Relationship::new(object1)));
+  assert!(members.pop().is_none());
+
+  assert!(members.vec.pop() == Some(Some(Relationship::new(object0))));
+}
+
+#[test]
+fn members_unshift() {
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.unshift(      object1.clone());
+  members.unshift_child(object2.clone());
+
+  assert!( members.vec.get(1).get_ref().is_child());
+  assert!( members.vec.get(1).get_ref().to() == &object2);
+
+  assert!(!members.vec.get(2).get_ref().is_child());
+  assert!( members.vec.get(2).get_ref().to() == &object1);
+}
+
+#[test]
+fn members_shift() {
+  let object0 = ObjectRef::new(box Thing::new());
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object0.clone())));
+  members.vec.push(Some(Relationship::new(object1.clone())));
+  members.vec.push(Some(Relationship::new(object2.clone())));
+
+  assert!(members.shift() == Some(Relationship::new(object1)));
+  assert!(members.shift() == Some(Relationship::new(object2)));
+  assert!(members.shift().is_none());
+
+  assert!(members.vec.shift() == Some(Some(Relationship::new(object0))));
+}
+
+#[test]
+fn members_insert() {
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.insert(2, object2.clone());
+
+  assert!(!members.get(2).unwrap().is_child());
+  assert!( members.get(2).unwrap().to() == &object2);
+
+  assert!( members.get(1).is_none());
+  assert!( members.get(0).is_none());
+  assert!( members.get(3).is_none());
+
+  members.insert_child(1, object1.clone());
+
+  assert!( members.get(1).unwrap().is_child());
+  assert!( members.get(1).unwrap().to() == &object1);
+
+  assert!(!members.get(3).unwrap().is_child());
+  assert!( members.get(3).unwrap().to() == &object2);
+
+  assert!( members.get(0).is_none());
+  assert!( members.get(2).is_none());
+}
+
+#[test]
+fn members_remove() {
+  let object0 = ObjectRef::new(box Thing::new());
+  let object1 = ObjectRef::new(box Thing::new());
+  let object2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object0.clone())));
+  members.vec.push(Some(Relationship::new(object1.clone())));
+  members.vec.push(Some(Relationship::new(object2.clone())));
+
+  assert!(members.remove(2) == Some(Relationship::new(object2)));
+  assert!(members.vec.len() == 2);
+  
+  assert!(members.remove(0) == Some(Relationship::new(object0)));
+  assert!(members.vec.len() == 1);
+
+  assert!(members.remove(1).is_none());
+  assert!(members.remove(0) == Some(Relationship::new(object1)));
+
+  assert!(members.vec.is_empty());
+}
+
+#[test]
+fn members_delete() {
+  let object0 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.vec.push(Some(Relationship::new(object0.clone())));
+
+  assert!(members.delete(1).is_none());
+
+  assert!(members.delete(0) == Some(Relationship::new(object0)));
+
+  assert!(members.vec.len() == 1);
+  assert!(members.vec.get(0).is_none());
+}
+
+#[test]
+fn members_lookup_pair_by_ref_equality() {
+  let key1 = ObjectRef::new(box Thing::new());
+  let key2 = ObjectRef::new(box Thing::new());
+  let key3 = ObjectRef::new(box Thing::new()); // doesn't exist
+
+  let val1 = ObjectRef::new(box Thing::new());
+  let val2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.push_pair(key1.clone(), val1.clone());
+  members.push_pair(key2.clone(), val2.clone());
+
+  assert!(members.lookup_pair(&key1) == Some(val1));
+  assert!(members.lookup_pair(&key2) == Some(val2));
+  assert!(members.lookup_pair(&key3) == None);
+}
+
+#[test]
+fn members_lookup_pair_by_symbol_equality() {
+  let machine = Machine::new();
+
+  let key1 = machine.symbol("key1");
+  let key2 = machine.symbol("key2");
+
+  let val1 = ObjectRef::new(box Thing::new());
+  let val2 = ObjectRef::new(box Thing::new());
+
+  let mut members = Members::new();
+
+  members.push_pair(key1, val1.clone());
+  members.push_pair(key2, val2.clone());
+
+  assert!(members.lookup_pair(&machine.symbol("key1")) == Some(val1));
+  assert!(members.lookup_pair(&machine.symbol("key2")) == Some(val2));
+  assert!(members.lookup_pair(&machine.symbol("key3")) == None);
+}
+
+#[test]
+fn members_lookup_pair_on_empty_members() {
+  let key     = ObjectRef::new(box Thing::new());
+  let members = Members::new();
+
+  assert!(members.lookup_pair(&key) == None);
+}
+
+#[test]
+fn members_push_pair() {
   let key = ObjectRef::new(box Thing::new());
   let val = ObjectRef::new(box Thing::new());
 
-  let mut meta = Meta::new();
+  let mut members = Members::new();
 
-  meta.members.push_pair(key.clone(), val.clone());
+  members.push_pair(key.clone(), val.clone());
 
-  meta.members.push_pair_to_child(key.clone(), val.clone());
+  members.push_pair_to_child(key.clone(), val.clone());
 
-  assert!(meta.members.len() == 3);
+  assert!(members.len() == 3);
 
-  assert!(meta.members.get(0).is_none());
+  assert!(members.get(0).is_none());
 
-  assert!(meta.members.get(1).unwrap().is_child());
-  assert!(meta.members.get(2).unwrap().is_child());
+  assert!(members.get(1).unwrap().is_child());
+  assert!(members.get(2).unwrap().is_child());
 
   {
     // Check non-child pair (1)
-    let pair = meta.members.get(1).unwrap().to().lock();
+    let pair = members.get(1).unwrap().to().lock();
     let pair_members = &pair.deref().meta().members;
 
     assert!( pair_members.get(0).is_none());
@@ -58,7 +296,7 @@ fn meta_member_push_pair() {
 
   {
     // Check child pair (2)
-    let pair = meta.members.get(2).unwrap().to().lock();
+    let pair = members.get(2).unwrap().to().lock();
     let pair_members = &pair.deref().meta().members;
 
     assert!( pair_members.get(0).is_none());
@@ -72,11 +310,42 @@ fn meta_member_push_pair() {
 }
 
 #[test]
-fn meta_member_lookup_pair_on_empty_members() {
-  let key  = ObjectRef::new(box Thing::new());
-  let meta = Meta::new();
+fn members_expand_to() {
+  let mut members = Members::new();
 
-  assert!(meta.members.lookup_pair(&key) == None);
+  assert!(members.vec.is_empty());
+
+  members.expand_to(1);
+  assert!(members.vec.len() == 1);
+
+  members.expand_to(3);
+  assert!(members.vec.len() == 3);
+
+  assert!(members.vec.get(0).is_none());
+  assert!(members.vec.get(1).is_none());
+  assert!(members.vec.get(2).is_none());
+}
+
+#[test]
+fn members_len() {
+  let mut members = Members::new();
+
+  assert!(members.is_empty());
+
+  members.vec.push(None);
+  members.vec.push(None);
+  members.vec.push(None);
+
+  assert!(members.vec.len() == members.len());
+}
+
+#[test]
+fn object_ref_equality() {
+  let object_ref1 = ObjectRef::new(box Thing::new());
+  let object_ref2 = ObjectRef::new(box Thing::new());
+
+  assert!(&object_ref1 == &object_ref1);
+  assert!(&object_ref1 != &object_ref2);
 }
 
 #[test]
