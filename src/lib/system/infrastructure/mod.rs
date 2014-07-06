@@ -15,6 +15,7 @@ use machine::*;
 
 use util::namespace::*;
 
+pub mod label;
 pub mod execution;
 
 /// Generates an `infrastructure` namespace object.
@@ -25,12 +26,14 @@ pub fn make(machine: &Machine) -> ObjectRef {
   {
     let mut add = NamespaceBuilder::new(machine, &mut *infrastructure);
 
+    add.namespace(    "label",                   label::make                  );
     add.namespace(    "execution",               execution::make              );
 
     add.call_pattern( "empty",                   empty, 0                     );
 
     add.call_pattern( "get",                     get, 2                       );
     add.call_pattern( "set",                     set, 3                       );
+    add.call_pattern( "cut",                     cut, 2                       );
 
     add.call_pattern( "affix",                   affix, 2                     );
     add.call_pattern( "unaffix",                 unaffix, 1                   );
@@ -39,7 +42,14 @@ pub fn make(machine: &Machine) -> ObjectRef {
 
     add.call_pattern( "length",                  length, 1                    );
 
+    add.call_pattern( "find",                    find, 2                      );
+
+    add.call_pattern( "compare",                 compare, 2                   );
+    add.call_pattern( "clone",                   clone, 1                     );
+    add.call_pattern( "adopt",                   adopt, 2                     );
+
     add.call_pattern( "receiver",                receiver, 1                  );
+    add.call_pattern( "receive",                 receive, 2                   );
 
     add.call_pattern( "own",                     own, 2                       );
     add.call_pattern( "disown",                  disown, 2                    );
@@ -88,6 +98,24 @@ pub fn set(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
   }
 }
 
+pub fn cut(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+           -> Reaction {
+  match args {
+    [ref from, ref index] => {
+      let index = match unsignedish(index) {
+        Some(index) => index,
+        None        => return Yield
+      };
+
+      match from.lock().meta_mut().members.delete(index) {
+        Some(relationship) => React(caller, relationship.to().clone()),
+        None               => Yield
+      }
+    },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
 pub fn affix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
              -> Reaction {
   match args {
@@ -102,12 +130,11 @@ pub fn affix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 pub fn unaffix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
                -> Reaction {
   match args {
-    [ref from] => {
+    [ref from] =>
       match from.lock().meta_mut().members.pop() {
         Some(relationship) => React(caller, relationship.unwrap()),
         None               => Yield
-      }
-    },
+      },
     _ => fail!("wrong number of arguments")
   }
 }
@@ -126,12 +153,11 @@ pub fn prefix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 pub fn unprefix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
                 -> Reaction {
   match args {
-    [ref from] => {
+    [ref from] =>
       match from.lock().meta_mut().members.shift() {
         Some(relationship) => React(caller, relationship.unwrap()),
         None               => Yield
-      }
-    },
+      },
     _ => fail!("wrong number of arguments")
   }
 }
@@ -150,6 +176,59 @@ pub fn length(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
   }
 }
 
+pub fn find(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+            -> Reaction {
+  match args {
+    [ref within, ref key] =>
+      match within.lock().meta().members.lookup_pair(key) {
+        Some(value) => React(caller, value),
+        None        => Yield
+      },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
+pub fn compare(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+               -> Reaction {
+  match args {
+    [ref a, ref b] =>
+      if a == b {
+        React(caller, a.clone())
+      } else {
+        Yield
+      },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
+pub fn clone(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+             -> Reaction {
+  match args {
+    [ref original] => {
+      let mut meta = Meta::new();
+
+      meta.members = original.lock().meta().members.clone();
+
+      React(caller, ObjectRef::new(box Thing::from_meta(meta)))
+    },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
+pub fn adopt(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+             -> Reaction {
+  match args {
+    [ref from, ref onto] => {
+      let members = from.lock().meta().members.clone();
+
+      onto.lock().meta_mut().members = members;
+
+      Yield
+    },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
 pub fn receiver(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
                 -> Reaction {
   match args {
@@ -162,6 +241,21 @@ pub fn receiver(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
           React(caller, ObjectRef::new(box
                           Alien::from_native_receiver(receiver)))
       },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
+pub fn receive(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+               -> Reaction {
+  match args {
+    [ref on, ref receiver] => {
+      // TODO: see whether checking whether the 'receiver' is an Alien wrapping
+      // a NativeReceiver and using that yields a performance advantage (it
+      // should)
+      on.lock().meta_mut().receiver = ObjectReceiver(receiver.clone());
+
+      Yield
+    },
     _ => fail!("wrong number of arguments")
   }
 }

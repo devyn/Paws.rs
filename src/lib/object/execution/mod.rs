@@ -196,11 +196,7 @@ fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
 
 impl Object for Execution {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
-    try!(write!(writer, "Execution {{ root: "));
-
-    try!(self.root.fmt_paws(writer));
-
-    try!(write!(writer, ", pristine: {}, pc: {}, stack: [",
+    try!(write!(writer, "Execution {{ pristine: {}, pc: {}, stack: [",
       self.pristine, self.pc));
 
     let mut stack_iter = self.stack.iter().peekable();

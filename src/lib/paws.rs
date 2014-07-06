@@ -23,6 +23,7 @@
 extern crate collections;
 extern crate sync;
 extern crate native;
+extern crate term;
 
 #[phase(plugin, link)]
 extern crate log;
