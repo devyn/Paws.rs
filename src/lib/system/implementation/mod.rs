@@ -91,9 +91,7 @@ pub fn void(machine: &Machine) -> Alien {
 /// # Example
 ///
 ///     implementation stop[]
-pub fn stop(machine: &Machine,
-            caller:  ObjectRef,
-            args:    &[ObjectRef])
+pub fn stop(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
             -> Reaction {
   machine.stop();
   Yield

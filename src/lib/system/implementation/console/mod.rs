@@ -20,6 +20,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     let mut add = NamespaceBuilder::new(machine, &mut *console);
 
     add.oneshot(      "print",                   print                        );
+    add.oneshot(      "inspect",                 inspect                      );
   }
 
   ObjectRef::new(console)
@@ -43,6 +44,18 @@ pub fn print(machine: &Machine, response: ObjectRef) -> Reaction {
   Yield
 }
 
+/// Debug-prints the given Object (`fmt_paws()`) to stdout. Doesn't return.
+/// Oneshot.
+///
+/// # Example
+///
+///     implementation console inspect [locals]
+pub fn inspect(machine: &Machine, response: ObjectRef) -> Reaction {
+  let mut stdout = stdio::stdout();
 
+  // FIXME: do something if these fail
+  let _ = response.lock().fmt_paws(&mut stdout);
+  let _ = stdout.write_char('\n');
 
+  Yield
 }

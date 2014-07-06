@@ -107,6 +107,12 @@ impl Members {
     self.vec.push(Some(Relationship::new_child(object)));
   }
 
+  /// Removes and returns the last Relationship, unless the list is empty or
+  /// there was a hole at the end.
+  pub fn pop(&mut self) -> Option<Relationship> {
+    self.vec.pop().unwrap_or(None)
+  }
+
   /// Inserts the given object as a non-child Relationship at the given index,
   /// pushing further Relationships upward.
   ///

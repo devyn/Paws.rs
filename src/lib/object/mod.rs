@@ -306,6 +306,12 @@ impl Relationship {
   pub fn to<'a>(&'a self) -> &'a ObjectRef {
     &self.to
   }
+
+  /// Consumes the relationship, returning the object this relationship points
+  /// to, whether it is a child relationship or not.
+  pub fn unwrap(self) -> ObjectRef {
+    self.to
+  }
 }
 
 /// Object metadata -- this is universal for all objects, and required in order
