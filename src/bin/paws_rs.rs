@@ -1,10 +1,17 @@
 extern crate paws;
+extern crate native;
 
 use std::io;
 use std::os;
 use paws::cpaws;
 use paws::machine::Machine;
 use paws::object::execution::Execution;
+
+#[start]
+fn start(argc: int, argv: **u8) -> int {
+  // Make sure we use the native (not green thread) runtime
+  native::start(argc, argv, main)
+}
 
 fn main() {
   let input = io::stdin().read_to_str()
