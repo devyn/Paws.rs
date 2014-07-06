@@ -89,6 +89,43 @@ impl Members {
     }
   }
 
+  /// Turns the relationship at the given position into a child Relationship.
+  ///
+  /// Returns `true` if there was a relationship at the index, `false`
+  /// otherwise.
+  pub fn own(&mut self, index: uint) -> bool {
+    if index < self.len() {
+      match *self.vec.get_mut(index) {
+        Some(ref mut relationship) => {
+          relationship.own();
+          true
+        },
+        None => false
+      }
+    } else {
+      false
+    }
+  }
+
+  /// Turns the relationship at the given position into a non-child
+  /// Relationship.
+  ///
+  /// Returns `true` if there was a relationship at the index, `false`
+  /// otherwise.
+  pub fn disown(&mut self, index: uint) -> bool {
+    if index < self.len() {
+      match *self.vec.get_mut(index) {
+        Some(ref mut relationship) => {
+          relationship.disown();
+          true
+        },
+        None => false
+      }
+    } else {
+      false
+    }
+  }
+
   /// Affixes the given object as a non-child Relationship.
   pub fn push(&mut self, object: ObjectRef) {
     self.expand_to(1);

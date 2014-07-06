@@ -307,6 +307,16 @@ impl Relationship {
     &self.to
   }
 
+  /// Turns the relationship into a 'child relationship'.
+  pub fn own(&mut self) {
+    self.is_child = true;
+  }
+
+  /// Turns the relationship into a 'non-child relationship'.
+  pub fn disown(&mut self) {
+    self.is_child = false;
+  }
+
   /// Consumes the relationship, returning the object this relationship points
   /// to, whether it is a child relationship or not.
   pub fn unwrap(self) -> ObjectRef {
