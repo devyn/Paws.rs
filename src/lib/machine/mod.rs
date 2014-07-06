@@ -377,7 +377,7 @@ pub struct Combination {
 
 /// Describes a Realization of an `execution` (0) with a `response` (1).
 #[deriving(Clone, PartialEq, Eq)]
-pub struct Realization(ObjectRef, ObjectRef);
+pub struct Realization(pub ObjectRef, pub ObjectRef);
 
 /// The system interface.
 #[deriving(Clone)]
