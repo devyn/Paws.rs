@@ -14,6 +14,7 @@ pub mod thing;
 pub mod symbol;
 pub mod execution;
 pub mod alien;
+pub mod locals;
 
 mod members;
 

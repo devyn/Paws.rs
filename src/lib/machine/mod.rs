@@ -13,6 +13,7 @@ use object::thing::Thing;
 use object::symbol::{Symbol, SymbolMap};
 use object::execution::Execution;
 use object::alien::Alien;
+use object::locals::Locals;
 
 use system::implementation;
 use system::infrastructure;
@@ -72,16 +73,16 @@ impl Machine {
   }
 
   /// Creates an Execution object from the given `Script` with a 'locals' member
-  /// pointing at a new `Thing`.
+  /// pointing at a new `Locals` named "locals".
   ///
   /// This is the recommended way to create new Executions.
   pub fn execution(&self, root: Script) -> ObjectRef {
     let mut execution = box Execution::new(root);
 
     let locals_key = ObjectRef::new_symbol(box Symbol::new(
-                         self.locals_sym.symbol_ref().unwrap().clone()));
+                       self.locals_sym.symbol_ref().unwrap().clone()));
 
-    let locals_ref = ObjectRef::new(box Thing::new());
+    let locals_ref = ObjectRef::new(box Locals::new(self.locals_sym.clone()));
 
     execution.meta_mut().members.push_pair_to_child(locals_key, locals_ref);
 
@@ -286,7 +287,7 @@ impl Machine {
                 // This execution is already complete, so we can't do anything;
                 // we have to go back to the queue.
 
-                debug!("yield reactor: execution already complete");
+                debug!("yield reactor: execution complete");
                 continue 'queue
               }
             }
