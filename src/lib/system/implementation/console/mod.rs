@@ -23,7 +23,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.oneshot(      "inspect",                 inspect                      );
   }
 
-  ObjectRef::new(console)
+  ObjectRef::new(console).tag("(impl. console)")
 }
 
 /// Prints a symbol to stdout. Doesn't return. Oneshot.

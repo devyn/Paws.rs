@@ -105,16 +105,38 @@ pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
 #[deriving(Clone)]
 pub struct ObjectRef {
   reference:  Arc<Mutex<Box<Object+Send+Share>>>,
-  symbol_ref: Option<Arc<String>>
+  symbol_ref: Option<Arc<String>>,
+
+  /// Allows tagging references, which makes debug output clearer. Adds overhead
+  /// though, so is removed for non-debug builds.
+  #[cfg(not(ndebug))]
+  tag:        Option<Arc<String>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
   pub fn new(object: Box<Object+Send+Share>) -> ObjectRef {
-    ObjectRef {
-      reference:  Arc::new(Mutex::new(object)),
-      symbol_ref: None
+    ObjectRef::make_internal(Arc::new(Mutex::new(object)), None)
+  }
+
+  /// Boxes an Object trait into an Object reference, preserving the tag of the
+  /// original from which it was cloned.
+  pub fn new_clone_of(original: &ObjectRef, object: Box<Object+Send+Share>)
+                      -> ObjectRef {
+
+    #[cfg(not(ndebug))]
+    fn clone_tag(from: &ObjectRef, to: &mut ObjectRef) {
+      to.tag = from.tag.clone();
     }
+
+    #[cfg(ndebug)]
+    fn clone_tag(_: &ObjectRef, _: &mut ObjectRef) { }
+
+    let mut r = ObjectRef::make_internal(Arc::new(Mutex::new(object)), None);
+
+    clone_tag(original, &mut r);
+
+    r
   }
 
   /// Boxes a Symbol into a Symbol reference.
@@ -124,10 +146,10 @@ impl ObjectRef {
   /// assumed to have been created this way; behavior is undefined if they are
   /// created with `ObjectRef::new()` instead.
   pub fn new_symbol(symbol: Box<symbol::Symbol>) -> ObjectRef {
-    ObjectRef {
-      symbol_ref: Some(symbol.name_ptr()),
-      reference:  Arc::new(Mutex::new(symbol as Box<Object+Send+Share>))
-    }
+    let symbol_ref = Some(symbol.name_ptr());
+    let reference  = Arc::new(Mutex::new(symbol as Box<Object+Send+Share>));
+
+    ObjectRef::make_internal(reference, symbol_ref)
   }
 
   /// Obtain exclusive access to the Object this reference points to.
@@ -157,6 +179,46 @@ impl ObjectRef {
   pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<String>> {
     self.symbol_ref.as_ref()
   }
+
+  /// Allows this `ObjectRef` to be tagged with a string for better debugging
+  /// output.
+  ///
+  /// The tag will not be added if this is the `ndebug` configuration (`--cfg
+  /// ndebug` argument to `rustc`).
+  pub fn tag(mut self, string: &str) -> ObjectRef {
+    #[cfg(not(ndebug))]
+    fn tag_internal(object_ref: &mut ObjectRef, string: &str) {
+      object_ref.tag = Some(Arc::new(string.to_string()));
+    }
+
+    #[cfg(ndebug)]
+    fn tag_internal(_: &mut ObjectRef, _: &str) { }
+
+    tag_internal(&mut self, string);
+
+    self
+  }
+
+  #[cfg(ndebug)]
+  fn make_internal(reference:  Arc<Mutex<Box<Object+Send+Share>>>,
+                   symbol_ref: Option<Arc<String>>)
+                   -> ObjectRef {
+    ObjectRef {
+      reference:  reference,
+      symbol_ref: symbol_ref
+    }
+  }
+
+  #[cfg(not(ndebug))]
+  fn make_internal(reference:  Arc<Mutex<Box<Object+Send+Share>>>,
+                   symbol_ref: Option<Arc<String>>)
+                   -> ObjectRef {
+    ObjectRef {
+      reference:  reference,
+      symbol_ref: symbol_ref,
+      tag:        None
+    }
+  }
 }
 
 impl PartialEq for ObjectRef {
@@ -169,6 +231,29 @@ impl PartialEq for ObjectRef {
 impl Eq for ObjectRef { }
 
 impl Show for ObjectRef {
+  #[cfg(not(ndebug))]
+  fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
+    match self.tag {
+      Some(ref tag) =>
+        match self.symbol_ref {
+          Some(ref string) =>
+            write!(out, "[:{:s} ~{:s}]", string.as_slice(), tag.as_slice()),
+          None =>
+            write!(out, "[#{:p} ~{:s}]", &*self.reference, tag.as_slice())
+        },
+
+      _ =>
+        match self.symbol_ref {
+          Some(ref string) =>
+            write!(out, "[:{:s}]", string.as_slice()),
+          None =>
+            write!(out, "[#{:p}]", &*self.reference)
+        }
+    }
+
+  }
+
+  #[cfg(ndebug)]
   fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
     match self.symbol_ref {
       Some(ref string) =>

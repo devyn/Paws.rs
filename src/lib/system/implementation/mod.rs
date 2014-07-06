@@ -30,7 +30,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "stop",                    stop, 0                      );
   }
 
-  ObjectRef::new(implementation)
+  ObjectRef::new(implementation).tag("(implementation)")
 }
 
 /// Acts as a void, accepting and discarding objects and then returning itself

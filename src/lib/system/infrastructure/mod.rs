@@ -45,7 +45,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "disown",                  disown, 2                    );
   }
 
-  ObjectRef::new(infrastructure)
+  ObjectRef::new(infrastructure).tag("(infrastructure)")
 }
 
 pub fn empty(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])

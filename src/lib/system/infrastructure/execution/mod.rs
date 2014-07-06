@@ -21,7 +21,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "stage",                   stage, 2                     );
   }
 
-  ObjectRef::new(execution)
+  ObjectRef::new(execution).tag("(infra. execution)")
 }
 
 pub fn stage(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])

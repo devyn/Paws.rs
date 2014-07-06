@@ -274,7 +274,7 @@ impl Machine {
             // For an Execution, we just want to advance() it and have the
             // Machine process the combination if there was one.
 
-            debug!("realize execution {} <-- {}",
+            debug!("realize execution {} \t<-- {}",
               execution_ref, response_ref);
 
             match execution.advance(execution_ref.clone(), response_ref) {
@@ -299,7 +299,7 @@ impl Machine {
                 // Aliens are a bit different. They handle unlocking themselves
                 // at a point which they see fit, so we give them the lock.
 
-                debug!("realize alien     {} <-- {}",
+                debug!("realize alien     {} \t<-- {}",
                   execution_ref, response_ref);
 
                 Alien::realize(alien, self, response_ref)

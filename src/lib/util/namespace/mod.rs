@@ -32,7 +32,7 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box factory(self.machine))
+      ObjectRef::new(box factory(self.machine)).tag(name)
     );
   }
 
@@ -44,7 +44,7 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box Alien::new_call_pattern(routine, n_args))
+      ObjectRef::new(box Alien::new_call_pattern(routine, n_args)).tag(name)
     );
   }
 
@@ -55,7 +55,7 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box Alien::new_oneshot(routine))
+      ObjectRef::new(box Alien::new_oneshot(routine)).tag(name)
     );
   }
 
@@ -89,7 +89,7 @@ pub fn namespace_receiver(machine: &Machine, params: Params) -> Reaction {
       match value.lock().try_cast::<Alien>() {
         Ok(alien) =>
           React(params.caller.clone(),
-                ObjectRef::new(box alien.deref().clone())),
+                ObjectRef::new_clone_of(&value, box alien.deref().clone())),
         Err(object) =>
           React(params.caller.clone(), object.unlock().clone())
       },
