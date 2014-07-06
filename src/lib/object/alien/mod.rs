@@ -58,6 +58,18 @@ impl Alien {
                call_pattern_data as Box<Data+'static+Send+Share>)
   }
 
+  /// Construct a oneshot Alien which calls the given `OneshotRoutine` for only
+  /// one realization of the Alien. Any further realizations will yield.
+  pub fn new_oneshot(routine: OneshotRoutine) -> Alien {
+    let oneshot_data = box OneshotData {
+      complete: false,
+      routine:  routine
+    };
+
+    Alien::new(oneshot_alien_routine,
+               oneshot_data as Box<Data+'static+Send+Share>)
+  }
+
   /// Calls the Alien's routine with the given `machine` and `response`.
   ///
   /// # Example
@@ -256,4 +268,52 @@ fn call_pattern_alien_routine<'a>(
       // Need more args!
       React(caller, alien.unlock().clone())
   }
+}
+
+/// A function that implements a "oneshot" style Alien.
+///
+/// This type of alien only ever accepts one argument, after which it is
+/// considered to have 'completed' and the routine will never be called again;
+/// any further realizations of the Alien result in no response.
+pub type OneshotRoutine = fn (machine:  &Machine,
+                              response: ObjectRef)
+                              -> Reaction;
+
+/// Internal state for oneshot wrapper.
+struct OneshotData {
+  complete: bool,
+  routine:  OneshotRoutine
+}
+
+impl Clone for OneshotData {
+  fn clone(&self) -> OneshotData {
+    OneshotData {
+      complete: self.complete,
+      routine:  self.routine
+    }
+  }
+}
+
+/// Function that performs oneshot wrapper.
+fn oneshot_alien_routine<'a>(
+                          mut alien: TypedRefGuard<'a, Alien>,
+                          machine:   &Machine,
+                          response:  ObjectRef)
+                          -> Reaction {
+
+  let routine = {
+    let data = alien.data.as_mut::<OneshotData>().unwrap();
+
+    if data.complete {
+      return Yield;
+    } else {
+      data.complete = true;
+    }
+
+    data.routine
+  };
+
+  drop(alien);
+
+  routine(machine, response)
 }

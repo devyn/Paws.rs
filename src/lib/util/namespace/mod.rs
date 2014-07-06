@@ -3,7 +3,7 @@
 
 use object::*;
 use object::thing::Thing;
-use object::alien::{Alien, CallPatternRoutine};
+use object::alien::{Alien, CallPatternRoutine, OneshotRoutine};
 
 use machine::*;
 
@@ -45,6 +45,17 @@ impl<'a> NamespaceBuilder<'a> {
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
       ObjectRef::new(box Alien::new_call_pattern(routine, n_args))
+    );
+  }
+
+  /// Adds a new oneshot Alien with the given name.
+  pub fn oneshot(&mut self,
+                 name:    &str,
+                 routine: OneshotRoutine) {
+
+    self.thing.meta_mut().members.push_pair_to_child(
+      self.machine.symbol(name),
+      ObjectRef::new(box Alien::new_oneshot(routine))
     );
   }
 
