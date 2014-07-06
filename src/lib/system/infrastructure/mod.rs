@@ -9,6 +9,7 @@
 
 use object::*;
 use object::thing::Thing;
+use object::alien::Alien;
 
 use machine::*;
 
@@ -29,6 +30,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "empty",                   empty, 0                     );
 
     add.call_pattern( "get",                     get, 2                       );
+    add.call_pattern( "set",                     set, 3                       );
 
     add.call_pattern( "affix",                   affix, 2                     );
     add.call_pattern( "unaffix",                 unaffix, 1                   );
@@ -36,6 +38,8 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "unprefix",                unprefix, 2                  );
 
     add.call_pattern( "length",                  length, 1                    );
+
+    add.call_pattern( "receiver",                receiver, 1                  );
 
     add.call_pattern( "own",                     own, 2                       );
     add.call_pattern( "disown",                  disown, 2                    );
@@ -63,6 +67,22 @@ pub fn get(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         Some(relationship) => React(caller, relationship.to().clone()),
         None               => Yield
       }
+    },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
+pub fn set(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+           -> Reaction {
+  match args {
+    [ref on, ref index, ref what] => {
+      let index = match unsignedish(index) {
+        Some(index) => index,
+        None        => return Yield
+      };
+
+      on.lock().meta_mut().members.set(index, what.clone());
+      Yield
     },
     _ => fail!("wrong number of arguments")
   }
@@ -130,6 +150,22 @@ pub fn length(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
   }
 }
 
+pub fn receiver(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+                -> Reaction {
+  match args {
+    [ref of] =>
+      match of.lock().meta().receiver.clone() {
+        ObjectReceiver(receiver) =>
+          React(caller, receiver),
+
+        NativeReceiver(receiver) =>
+          React(caller, ObjectRef::new(box
+                          Alien::from_native_receiver(receiver)))
+      },
+    _ => fail!("wrong number of arguments")
+  }
+}
+
 pub fn own(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
            -> Reaction {
   match args {
@@ -142,11 +178,11 @@ pub fn own(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         }
 
       });
+
+      Yield
     },
     _ => fail!("wrong number of arguments")
   }
-
-  Yield
 }
 
 pub fn disown(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
@@ -161,11 +197,11 @@ pub fn disown(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         }
 
       });
+
+      Yield
     },
     _ => fail!("wrong number of arguments")
   }
-
-  Yield
 }
 
 // FIXME when ELLIOTTCABLE decides what he wants to do about numbers.
