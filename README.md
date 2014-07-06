@@ -12,6 +12,14 @@
 
 ## Running
 
-Try this, for now:
+Without logging:
 
-    $ echo "implementation void[] hello world [implementation stop[]]" | RUST_LOG="paws=4" build/paws_rs
+    $ build/paws_rs < path/to/file.paws
+
+With logging:
+
+    $ RUST_LOG="paws=4" build/paws_rs < path/to/file.paws
+
+There are examples to run in `examples/`. You'll have to terminate Paws.rs
+yourself (the usual way, ^C), or add an `implementation stop[]` call in there
+somewhere; otherwise it will run forever.
