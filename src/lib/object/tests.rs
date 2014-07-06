@@ -17,11 +17,11 @@ fn meta_member_relationships() {
 
   meta.members.push_child(object2.clone());
 
-  assert!(!meta.members.get(0).unwrap().is_child());
-  assert!( meta.members.get(0).unwrap().to() == &object1);
+  assert!(!meta.members.get(1).unwrap().is_child());
+  assert!( meta.members.get(1).unwrap().to() == &object1);
 
-  assert!( meta.members.get(1).unwrap().is_child());
-  assert!( meta.members.get(1).unwrap().to() == &object2);
+  assert!( meta.members.get(2).unwrap().is_child());
+  assert!( meta.members.get(2).unwrap().to() == &object2);
 }
 
 #[test]

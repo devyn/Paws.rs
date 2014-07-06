@@ -10,27 +10,14 @@ use object::thing::Thing;
 ///
 /// Note that 'nuclear' algorithms (i.e. those part of Paws' Nucleus, which is
 /// what Paws.rs strives to implement) should never assume anything about the
-/// first element of the list and should instead start from the second element
+/// first index of the list and should instead start from the second index
 /// unless specifically requested not to, as per the 'noughty' rule (see spec).
 ///
-/// # Enforcing the 'noughty rule'
+/// As such, all of the methods of `Members` that don't explicitly take an
+/// index, including `push()`, `unshift()`, etc. **skip index 0 completely**.
 ///
-/// Only the methods that explicitly state that they enforce the 'noughty rule'
-/// (i.e. that Nucleus should not touch the zeroth member unless requested to)
-/// are affected by it. Otherwise, you should assume that they don't.
-///
-/// Here is a `push` that enforces the 'noughty rule':
-///
-///     members.expand_to(1); // Ensures that the zeroth slot is filled or a hole.
-///     members.push(obj);
-///
-/// Here is an `unshift` that enforces the 'noughty rule':
-///
-///     members.insert(1, obj);
-///
-/// Since the `push_pair` pattern methods are really just Nuclear helpers, they
-/// *do* enforce the noughty rule. It wouldn't make sense for them not to, as
-/// `lookup_pair` obeys the noughty rule.
+/// There is one exception: `len()` is the length of the underlying vector, so
+/// it still counts `noughty`. You probably want to subtract it.
 #[deriving(Clone)]
 pub struct Members {
   /// The vector of members, as `Option<Relationship>`s to account for holes.
@@ -54,11 +41,16 @@ impl Members {
     }
   }
 
-  /// Returns an iterator the Relationships and holes in the list.
+  /// Returns an iterator over the Relationships and holes in the list.
   ///
-  /// Equivalent to `.vec.iter()`.
+  /// Skips over the first element to obey the noughty rule.
   pub fn iter<'a>(&'a self) -> Items<'a, Option<Relationship>> {
-    self.vec.iter()
+    // Have to check, because tail() fails on a zero-element slice.
+    if self.len() > 0 {
+      self.vec.tail().iter()
+    } else {
+      self.vec.slice(0, 0).iter()
+    }
   }
 
   /// Replaces the object at the given position with a new non-child
@@ -99,18 +91,45 @@ impl Members {
 
   /// Affixes the given object as a non-child Relationship.
   pub fn push(&mut self, object: ObjectRef) {
+    self.expand_to(1);
     self.vec.push(Some(Relationship::new(object)));
   }
 
   /// Affixes the given object as a child Relationship.
   pub fn push_child(&mut self, object: ObjectRef) {
+    self.expand_to(1);
     self.vec.push(Some(Relationship::new_child(object)));
   }
 
   /// Removes and returns the last Relationship, unless the list is empty or
   /// there was a hole at the end.
+  ///
+  /// Obeys the noughty rule, so 'empty' is defined as 'one or fewer' elements.
   pub fn pop(&mut self) -> Option<Relationship> {
-    self.vec.pop().unwrap_or(None)
+    if self.len() > 1 {
+      self.vec.pop().unwrap()
+    } else {
+      None
+    }
+  }
+
+  /// Prefixes the given object as a non-child Relationship.
+  pub fn unshift(&mut self, object: ObjectRef) {
+    self.insert(1, object)
+  }
+
+  /// Prefixes the given object as a child Relationship.
+  pub fn unshift_child(&mut self, object: ObjectRef) {
+    self.insert_child(1, object)
+  }
+
+  /// Removes and returns the first Relationship, unless the list is empty or
+  /// there was a hole at the beginning.
+  ///
+  /// Obeys the noughty rule, so 'empty' is defined as 'one or fewer' elements,
+  /// and 'beginning' and 'first' as index 1, not 0.
+  pub fn shift(&mut self) -> Option<Relationship> {
+    self.remove(1)
   }
 
   /// Inserts the given object as a non-child Relationship at the given index,
