@@ -16,8 +16,7 @@ use term::Terminal;
 
 /// Generates an `implementation console` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut console =
-    box Thing::from_meta(Meta::with_receiver(namespace_receiver));
+  let mut console = box Thing::new();
 
   {
     let mut add = NamespaceBuilder::new(machine, &mut *console);

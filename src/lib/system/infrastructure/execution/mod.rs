@@ -5,17 +5,15 @@
 
 use object::*;
 use object::thing::Thing;
-use object::alien::Alien;
-use object::execution::Execution;
 
 use machine::*;
 
+use util::clone;
 use util::namespace::*;
 
 /// Generates an `infrastructure execution` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut execution =
-    box Thing::from_meta(Meta::with_receiver(namespace_receiver));
+  let mut execution = box Thing::new();
 
   {
     let mut add = NamespaceBuilder::new(machine, &mut *execution);
@@ -33,23 +31,16 @@ pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
               -> Reaction {
   match args {
     [ref executionish] => {
-      let clone = match executionish.lock().try_cast::<Execution>() {
+      let clone = match clone::queueable(executionish) {
 
-        Ok(execution) =>
-          ObjectRef::new_clone_of(executionish, box execution.deref().clone()),
+        Some(clone) => clone,
 
-        Err(unknown) => match unknown.try_cast::<Alien>() {
+        None => {
+          warn!(concat!("tried to branch {}, which is neither",
+                        " an execution nor an alien"),
+                executionish);
 
-          Ok(alien) =>
-            ObjectRef::new_clone_of(executionish, box alien.deref().clone()),
-
-          Err(_) => {
-            warn!(concat!("tried to branch {}, which is neither",
-                          " an execution nor an alien"),
-                  executionish);
-
-            return Yield
-          }
+          return Yield
         }
       };
 

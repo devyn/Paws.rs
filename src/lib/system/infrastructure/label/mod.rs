@@ -12,8 +12,7 @@ use util::namespace::*;
 
 /// Generates an `infrastructure label` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut label =
-    box Thing::from_meta(Meta::with_receiver(namespace_receiver));
+  let mut label = box Thing::new();
 
   {
     let mut add = NamespaceBuilder::new(machine, &mut *label);

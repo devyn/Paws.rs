@@ -70,30 +70,3 @@ impl<'a> NamespaceBuilder<'a> {
     );
   }
 }
-
-/// Similar to `object::lookup_receiver()`, but clones any `Alien` members
-/// before returning them.
-#[allow(unused_variable)]
-pub fn namespace_receiver(machine: &Machine, params: Params) -> Reaction {
-  let lookup_result = {
-    let subject = params.subject.lock();
-
-    subject.deref().meta().members.lookup_pair(&params.message)
-  };
-
-  debug!("{} <namespace_receiver> {} => {}",
-    params.subject, params.message, lookup_result);
-
-  match lookup_result {
-    Some(value) =>
-      match value.lock().try_cast::<Alien>() {
-        Ok(alien) =>
-          React(params.caller.clone(),
-                ObjectRef::new_clone_of(&value, box alien.deref().clone())),
-        Err(object) =>
-          React(params.caller.clone(), object.unlock().clone())
-      },
-    None =>
-      Yield
-  }
-}

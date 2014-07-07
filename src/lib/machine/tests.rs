@@ -6,6 +6,8 @@ use object::alien::Alien;
 use object::thing::Thing;
 use object::execution::Execution;
 
+use std::any::AnyRefExt;
+
 #[test]
 fn machine_creates_symbols_with_different_object_identity() {
   let machine = Machine::new();
@@ -69,7 +71,16 @@ fn machine_can_combine_via_direct_default_receiver() {
     message: message_ref.clone()
   });
 
-  assert!(reaction == React(caller_ref, message_ref));
+  match reaction {
+    React(execution, response) => {
+      assert!(message_ref == response);
+
+      assert!(caller_ref != execution);
+      assert!(caller_ref.lock().try_cast::<Execution>().ok().unwrap().root() ==
+               execution.lock().try_cast::<Execution>().ok().unwrap().root());
+    },
+    _ => fail!("unexpected {}, expected React", reaction)
+  }
 }
 
 #[test]
@@ -117,7 +128,10 @@ fn machine_can_combine_via_executionish_receiver() {
     fail!("stub_routine was called!")
   }
 
-  let stub_data     = box() ();
+  #[deriving(Clone)]
+  struct StubData;
+
+  let stub_data     = box StubData;
 
   let caller_ref    = machine.execution(Script(vec![]));
   let execution_ref = machine.execution(Script(vec![]));
@@ -139,7 +153,21 @@ fn machine_can_combine_via_executionish_receiver() {
 
     match reaction {
       React(execution, response_ref) => {
-        assert!(execution == receiver);
+        assert!(execution != receiver);
+
+        match execution.lock().try_cast::<Execution>() {
+          Ok(execution) =>
+            assert!(
+              execution.deref().root() ==
+              receiver.lock().try_cast::<Execution>().ok().unwrap().root()),
+          Err(unknown) =>
+            match unknown.try_cast::<Alien>() {
+              Ok(alien) =>
+                assert!(alien.deref().data.is::<StubData>()),
+              Err(_) =>
+                fail!("Object being staged is neither Execution nor Alien")
+            }
+        }
 
         let response = response_ref.lock();
 

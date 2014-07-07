@@ -13,6 +13,7 @@ use object::alien::Alien;
 
 use machine::*;
 
+use util::clone;
 use util::namespace::*;
 
 pub mod label;
@@ -20,8 +21,7 @@ pub mod execution;
 
 /// Generates an `infrastructure` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut infrastructure =
-    box Thing::from_meta(Meta::with_receiver(namespace_receiver));
+  let mut infrastructure = box Thing::new();
 
   {
     let mut add = NamespaceBuilder::new(machine, &mut *infrastructure);
@@ -204,13 +204,9 @@ pub fn compare(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 pub fn clone(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
              -> Reaction {
   match args {
-    [ref original] => {
-      let mut meta = Meta::new();
+    [ref original] =>
+      React(caller, ObjectRef::new(box clone::to_thing(original))),
 
-      meta.members = original.lock().meta().members.clone();
-
-      React(caller, ObjectRef::new(box Thing::from_meta(meta)))
-    },
     _ => fail!("wrong number of arguments")
   }
 }

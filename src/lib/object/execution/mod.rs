@@ -11,9 +11,13 @@
 
 use std::io::IoResult;
 
+use sync::Arc;
+
 use script::*;
 use object::*;
 use machine::{Machine, Combination};
+
+use util::clone;
 
 #[cfg(test)]
 mod tests;
@@ -22,7 +26,7 @@ mod tests;
 /// well as a stack for evaluating subexpressions.
 #[deriving(Clone)]
 pub struct Execution {
-  root:     Script,
+  root:     Arc<Script>,
   pristine: bool,
   pc:       Vec<uint>,
   stack:    Vec<Option<ObjectRef>>,
@@ -33,7 +37,7 @@ impl Execution {
   /// Creates a new Execution with the given Script as its root.
   pub fn new(root: Script) -> Execution {
     Execution {
-      root:     root,
+      root:     Arc::new(root),
       pristine: true,
       pc:       Vec::new(),
       stack:    Vec::new(),
@@ -44,7 +48,7 @@ impl Execution {
   /// Returns the "root" Script of the Execution, which the Execution's internal
   /// program counter ("pc") is based on.
   pub fn root<'a>(&'a self) -> &'a Script {
-    &self.root
+    &*self.root
   }
 
   /// Advances the Execution, producing a Combination to be staged if the
@@ -74,7 +78,7 @@ impl Execution {
       *self.pc.mut_last().unwrap() += 1;
     }
 
-    match node_at_pc(&self.root, self.pc.as_slice()) {
+    match node_at_pc(&*self.root, self.pc.as_slice()) {
       None => {
         // If there was no Node after the original pc, the current Node is the
         // enclosing Expression.
@@ -231,9 +235,25 @@ impl Object for Execution {
   }
 }
 
-/// A receiver that simply tells the reactor to realize the subject (which
-/// should be an Execution or an Alien) with the message as the response.
+/// A receiver that first ensures the subject is queueable, clones it, and then
+/// enqueues the clone with the message.
 #[allow(unused_variable)]
 pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
-  React(params.subject.clone(), params.message.clone())
+  match clone::queueable(&params.subject) {
+    Some(clone) => {
+      debug!("stage_receiver: {} cloned to {} <-- {}",
+             params.subject, clone, params.message);
+
+      // React() would be unsafe; there may be other things depending on the
+      // order
+      machine.enqueue(clone, params.message.clone());
+    },
+
+    None =>
+      warn!(concat!("stage_receiver failed: {} <-- {}, subject is neither an",
+                    " execution nor an alien"),
+            params.subject, params.message)
+  }
+
+  Yield
 }

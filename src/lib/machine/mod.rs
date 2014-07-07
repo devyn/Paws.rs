@@ -18,9 +18,9 @@ use object::locals::Locals;
 use system::implementation;
 use system::infrastructure;
 
+use util::clone;
 use util::queue::Queue;
 
-use std::any::AnyRefExt;
 use sync::{Arc, Mutex};
 
 #[cfg(test)]
@@ -225,27 +225,27 @@ impl Machine {
         ObjectReceiver(receiver) => {
           drop(current_target); // Release the lock ASAP.
 
-          let queueable = {
-            let receiver = receiver.lock();
-            receiver.deref().is::<Execution>() ||
-            receiver.deref().is::<Alien>()
-          };
+          match clone::queueable(&receiver) {
+            Some(clone) => {
+              // If it is, we construct a params object `[, caller, subject,
+              // message]` and `React` a clone of the receiver with the params
+              // object as the response.
+              //
+              // TODO: Find a way to not have to clone it all the time.
+              let mut params = box Thing::new();
 
-          if queueable {
-            // If it is, we construct a params object
-            // `[, caller, subject, message]` and `React` the receiver with the
-            // params object as the response.
-            let mut params = box Thing::new();
+              params.meta_mut().members.set(1, caller);
+              params.meta_mut().members.set(2, subject);
+              params.meta_mut().members.set(3, message);
 
-            params.meta_mut().members.set(1, caller);
-            params.meta_mut().members.set(2, subject);
-            params.meta_mut().members.set(3, message);
+              return React(clone, ObjectRef::new(params))
+            },
 
-            return React(receiver.clone(), ObjectRef::new(params))
-          } else {
-            // If it isn't, we need to loop through this whole thing again, with
-            // this receiver as `use_receiver_of`.
-            use_receiver_of = receiver;
+            None => {
+              // If it isn't, we need to loop through this whole thing again, with
+              // this receiver as `use_receiver_of`.
+              use_receiver_of = receiver;
+            }
           }
         }
       }
