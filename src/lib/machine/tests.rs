@@ -71,15 +71,17 @@ fn machine_can_combine_via_direct_default_receiver() {
     message: message_ref.clone()
   });
 
-  match reaction {
-    React(execution, response) => {
+  assert!(reaction == Yield);
+
+  match machine.dequeue() {
+    Some(Realization(execution, response)) => {
       assert!(message_ref == response);
 
       assert!(caller_ref != execution);
       assert!(caller_ref.lock().try_cast::<Execution>().ok().unwrap().root() ==
                execution.lock().try_cast::<Execution>().ok().unwrap().root());
     },
-    _ => fail!("unexpected {}, expected React", reaction)
+    None => fail!("unexpected end of queue")
   }
 }
 
