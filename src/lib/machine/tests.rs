@@ -233,8 +233,9 @@ fn machine_can_combine_with_and_lookup_on_implicit_locals() {
 }
 
 #[test]
-fn machine_react_stop_call() {
+fn react_stop_call() {
   let machine = Machine::new();
+  let reactor = Reactor::new(machine.clone());
 
   let caller_ref = machine.execution(
                      Script(vec![
@@ -275,5 +276,5 @@ fn machine_react_stop_call() {
   machine.enqueue(caller_ref.clone(), caller_ref);
 
   // Let's go!
-  machine.run_reactor();
+  reactor.run();
 }

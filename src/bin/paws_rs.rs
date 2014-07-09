@@ -4,7 +4,7 @@ extern crate native;
 use std::io;
 use std::os;
 use paws::cpaws;
-use paws::machine::Machine;
+use paws::machine::{Machine, Reactor};
 use paws::object::execution::Execution;
 
 #[start]
@@ -31,7 +31,7 @@ fn main() {
       machine.enqueue(execution_ref.clone(), execution_ref.clone());
 
       // And let's go!
-      machine.run_reactor();
+      Reactor::new(machine).run();
     }
 
     Err(message) => {

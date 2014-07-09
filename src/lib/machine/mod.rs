@@ -12,7 +12,6 @@ use object::Params;
 use object::thing::Thing;
 use object::symbol::{Symbol, SymbolMap};
 use object::execution::Execution;
-use object::alien::Alien;
 use object::locals::Locals;
 
 use system::implementation;
@@ -21,7 +20,13 @@ use system::infrastructure;
 use util::clone;
 use util::queue::Queue;
 
+pub use util::queue::Messages;
+
 use sync::{Arc, Mutex};
+
+pub use machine::reactor::Reactor;
+
+mod reactor;
 
 #[cfg(test)]
 mod tests;
@@ -121,6 +126,12 @@ impl Machine {
   /// `Machine` has been `stop()`ped (in which case `None` is returned).
   pub fn dequeue(&self) -> Option<Realization> {
     self.queue.shift()
+  }
+
+  /// Iterates through the queue, blocking when there is no work available, and
+  /// ending when the queue terminates (`end()`).
+  pub fn iter_queue<'a>(&'a self) -> Messages<'a, Realization> {
+    self.queue.iter()
   }
 
   /// Marks the machine's global queue for termination. This action is
@@ -246,94 +257,6 @@ impl Machine {
               // this receiver as `use_receiver_of`.
               use_receiver_of = receiver;
             }
-          }
-        }
-      }
-    }
-  }
-
-  /// Iterates over the machine's global queue, performing realizations.
-  ///
-  /// Multiple reactors may be run as separate native tasks (**important!** not
-  /// green-threading compatible at the moment), or a single reactor setup may be
-  /// run standalone in any task.
-  pub fn run_reactor(&self) {
-
-    debug!("start reactor");
-
-    'queue:
-    for Realization(mut execution_ref, mut response_ref) in self.queue.iter() {
-
-      'immediate:
-      loop {
-        // Detect whether `execution_ref` is an Execution, an Alien, or
-        // something else, and handle those cases separately, capturing the
-        // Reaction.
-        let reaction = match execution_ref.lock().try_cast::<Execution>() {
-          Ok(mut execution) => {
-            // For an Execution, we just want to advance() it and have the
-            // Machine process the combination if there was one.
-
-            debug!("realize execution {} \t<-- {}",
-              execution_ref, response_ref);
-
-            match execution.advance(execution_ref.clone(), response_ref) {
-              Some(combination) =>
-                // Calls the receiver and all that jazz, resulting in a
-                // Reaction.
-                self.combine(execution.into_untyped(), combination),
-
-              None => {
-                // This execution is already complete, so we can't do anything;
-                // we have to go back to the queue.
-
-                debug!("yield reactor: execution complete");
-                continue 'queue
-              }
-            }
-          },
-
-          Err(execution_ish) =>
-            match execution_ish.try_cast::<Alien>() {
-              Ok(alien) => {
-                // Aliens are a bit different. They handle unlocking themselves
-                // at a point which they see fit, so we give them the lock.
-
-                debug!("realize alien     {} \t<-- {}",
-                  execution_ref, response_ref);
-
-                Alien::realize(alien, self, response_ref)
-              },
-
-              Err(_) => {
-                // Finally, if it was neither an Execution nor an Alien, it
-                // really doesn't belong in this queue and we'll just pretend it
-                // wasn't there.
-                
-                warn!("yield reactor: tried to realize non-queueable {}!",
-                  execution_ref);
-                continue 'queue
-              }
-            }
-        };
-
-        // Handle the Reaction.
-        match reaction {
-          React(next_execution_ref, next_response_ref) => {
-            // We got an execution and response right away, so let's do that
-            // immediately.
-            execution_ref = next_execution_ref;
-            response_ref  = next_response_ref;
-            continue 'immediate
-          },
-
-          Yield => {
-            // The receiver or Alien wants us to go back to the queue,
-            // potentially because it doesn't have anything ready for us right
-            // now or because it intentionally doesn't want to continue.
-
-            debug!("yield reactor: explicit");
-            continue 'queue
           }
         }
       }
