@@ -74,7 +74,9 @@ fn machine_can_combine_via_direct_default_receiver() {
   assert!(reaction == Yield);
 
   match machine.dequeue() {
-    Some(Realization(execution, response)) => {
+    Some(work) => {
+      let Realization(execution, response) = work.clone();
+
       assert!(message_ref == response);
 
       assert!(caller_ref != execution);

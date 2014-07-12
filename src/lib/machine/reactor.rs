@@ -32,8 +32,9 @@ impl Reactor {
     debug!("start reactor");
 
     'queue:
-    for Realization(mut execution_ref, mut response_ref)
-        in self.machine.iter_queue() {
+    for work in self.machine.iter_queue() {
+
+      let Realization(mut execution_ref, mut response_ref) = work.clone();
 
       'immediate:
       loop {

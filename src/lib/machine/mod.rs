@@ -17,12 +17,12 @@ use object::locals::Locals;
 use system::implementation;
 use system::infrastructure;
 
+use util::work_queue::{WorkQueue, Work, Stalled, Ended};
 use util::clone;
-use util::queue::Queue;
-
-pub use util::queue::Messages;
 
 use sync::{Arc, Mutex};
+
+pub use util::work_queue::WorkGuard;
 
 pub use machine::reactor::Reactor;
 
@@ -44,7 +44,7 @@ pub struct Machine {
 
   /// The receive-end of the main execution realization queue. Reactors pull
   /// from this.
-      queue:      Arc<Queue<Realization>>,
+      queue:      Arc<WorkQueue<Realization>>,
 
   /// The system interface. See `paws::system`. Lazily generated, because many
   /// tests don't need it.
@@ -62,7 +62,7 @@ impl Machine {
       symbol_map: Arc::new(Mutex::new(symbol_map)),
       locals_sym: locals_sym,
 
-      queue:      Arc::new(Queue::new()),
+      queue:      Arc::new(WorkQueue::new()),
 
       system:     Arc::new(Mutex::new(None))
     }
@@ -122,16 +122,26 @@ impl Machine {
   }
 
   /// Gets a realization from the machine's queue, blocking until either one is
-  /// available (in which case `Some(Realization)` is returned), or the
-  /// `Machine` has been `stop()`ped (in which case `None` is returned).
-  pub fn dequeue(&self) -> Option<Realization> {
-    self.queue.shift()
+  /// available (in which case `Some(WorkGuard<Realization>)` is returned), or
+  /// the `Machine` has been `stop()`ped (in which case `None` is returned).
+  ///
+  /// It is important that the `WorkGuard` be kept around while work is being
+  /// done that was requested from the queue. This allows the Machine to detect
+  /// stalls and handle them appropriately.
+  pub fn dequeue<'a>(&'a self) -> Option<WorkGuard<'a, Realization>> {
+    match self.queue.shift() {
+      Work(work) => Some(work),
+      Ended      => None,
+      Stalled    => {
+        unimplemented!() // TODO
+      }
+    }
   }
 
-  /// Iterates through the queue, blocking when there is no work available, and
-  /// ending when the queue terminates (`end()`).
-  pub fn iter_queue<'a>(&'a self) -> Messages<'a, Realization> {
-    self.queue.iter()
+  /// Creates an iterator over the work in the queue, ending when the Machine
+  /// `stop()`s.
+  pub fn iter_queue<'a>(&'a self) -> WorkItems<'a> {
+    WorkItems { machine: self }
   }
 
   /// Marks the machine's global queue for termination. This action is
@@ -307,4 +317,15 @@ pub struct Realization(pub ObjectRef, pub ObjectRef);
 struct System {
   infrastructure: ObjectRef,
   implementation: ObjectRef
+}
+
+/// An iterator over work in a machine's queue.
+pub struct WorkItems<'a> {
+  machine: &'a Machine
+}
+
+impl<'a> Iterator<WorkGuard<'a, Realization>> for WorkItems<'a> {
+  fn next(&mut self) -> Option<WorkGuard<'a, Realization>> {
+    self.machine.dequeue()
+  }
 }

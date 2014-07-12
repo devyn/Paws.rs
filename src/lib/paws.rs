@@ -17,6 +17,7 @@
 
 #![feature(globs)]
 #![feature(phase)]
+#![feature(unsafe_destructor)]
 
 #![warn(missing_doc)]
 

@@ -55,5 +55,5 @@ fn stop_stops() {
   let reaction = implementation::stop(&machine, caller, &[]);
 
   assert!(reaction == Yield);
-  assert!(machine.dequeue() == None);
+  assert!(machine.dequeue().is_none());
 }

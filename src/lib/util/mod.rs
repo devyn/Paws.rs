@@ -1,5 +1,5 @@
 ///! Utility functions and structures.
 
-pub mod queue;
+pub mod work_queue;
 pub mod namespace;
 pub mod clone;

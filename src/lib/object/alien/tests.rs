@@ -190,9 +190,10 @@ fn alien_from_native_receiver() {
         assert!(&response  == &message);
 
         match machine.dequeue() {
-          Some(Realization(execution, response)) => {
-            assert!(&execution == &caller);
-            assert!(&response  == &message);
+          Some(work) => {
+            let Realization(ref execution, ref response) = *work;
+            assert!(execution == &caller);
+            assert!(response  == &message);
           }
 
           None => fail!("Nothing on the queue!")
