@@ -20,6 +20,8 @@ use system::infrastructure;
 use util::work_queue::{WorkQueue, Work, Stalled, Ended};
 use util::clone;
 
+use std::mem::replace;
+
 use sync::{Arc, Mutex};
 
 pub use util::work_queue::WorkGuard;
@@ -35,20 +37,23 @@ mod tests;
 #[deriving(Clone)]
 pub struct Machine {
   /// Dictates which pointers should be used to represent Symbol strings.
-  pub symbol_map: Arc<Mutex<SymbolMap>>,
+  pub symbol_map:     Arc<Mutex<SymbolMap>>,
 
   /// A Symbol for "locals" used internally to affix Executions' locals onto
   /// them, as well as for comparison. Purely an optimization to avoid locking
   /// the symbol map; not strictly necessary.
-      locals_sym: ObjectRef,
+      locals_sym:     ObjectRef,
 
   /// The receive-end of the main execution realization queue. Reactors pull
   /// from this.
-      queue:      Arc<WorkQueue<Realization>>,
+      queue:          Arc<WorkQueue<Realization>>,
 
   /// The system interface. See `paws::system`. Lazily generated, because many
   /// tests don't need it.
-      system:     Arc<Mutex<Option<System>>>,
+      system:         Arc<Mutex<Option<System>>>,
+
+  /// Stall handler procedures that are called one time if a stall occurs.
+      stall_handlers: Arc<Mutex<Vec<proc(&Machine): Send>>>,
 }
 
 impl Machine {
@@ -59,12 +64,14 @@ impl Machine {
                            box Symbol::new(symbol_map.intern("locals")));
 
     Machine {
-      symbol_map: Arc::new(Mutex::new(symbol_map)),
-      locals_sym: locals_sym,
+      symbol_map:     Arc::new(Mutex::new(symbol_map)),
+      locals_sym:     locals_sym,
 
-      queue:      Arc::new(WorkQueue::new()),
+      queue:          Arc::new(WorkQueue::new()),
 
-      system:     Arc::new(Mutex::new(None))
+      system:         Arc::new(Mutex::new(None)),
+
+      stall_handlers: Arc::new(Mutex::new(Vec::new()))
     }
   }
 
@@ -129,11 +136,21 @@ impl Machine {
   /// done that was requested from the queue. This allows the Machine to detect
   /// stalls and handle them appropriately.
   pub fn dequeue<'a>(&'a self) -> Option<WorkGuard<'a, Realization>> {
-    match self.queue.shift() {
-      Work(work) => Some(work),
-      Ended      => None,
-      Stalled    => {
-        unimplemented!() // TODO
+    loop {
+      match self.queue.shift() {
+        Work(work) => return Some(work),
+        Ended      => return None,
+        Stalled    => {
+          // Call our stall handlers...
+          let handlers = replace(&mut *self.stall_handlers.lock(), Vec::new());
+
+          for handler in handlers.move_iter() {
+            handler(self);
+          }
+
+          // ...and retry.
+          continue
+        }
       }
     }
   }
@@ -271,6 +288,18 @@ impl Machine {
         }
       }
     }
+  }
+
+  /// Adds a handler to be called if the Machine stalls.
+  ///
+  /// The handler will only be called for a single stall, so if it is intended
+  /// to run more than once, it should re-add itself as a new unique procedure.
+  ///
+  /// It also needs to be `Send`able because it is possible (and often quite
+  /// likely) that the task that the procedure is run on won't be the same one
+  /// it was created from.
+  pub fn on_stall(&self, handler: proc(&Machine): Send) {
+    self.stall_handlers.lock().push(handler);
   }
 
   /// Lazy-get the system interface.

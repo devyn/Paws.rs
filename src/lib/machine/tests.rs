@@ -8,6 +8,9 @@ use object::execution::Execution;
 
 use std::any::AnyRefExt;
 
+use std::task::TaskBuilder;
+use native::task::NativeTaskBuilder;
+
 #[test]
 fn machine_creates_symbols_with_different_object_identity() {
   let machine = Machine::new();
@@ -232,6 +235,28 @@ fn machine_can_combine_with_and_lookup_on_implicit_locals() {
   });
 
   assert!(reaction == React(caller_ref, value_ref));
+}
+
+#[test]
+fn machine_stall_handlers() {
+  let machine  = Machine::new();
+  let machine2 = machine.clone();
+
+  let (stalled_tx, stalled_rx) = channel::<()>();
+
+  machine.on_stall(proc(_) {
+    stalled_tx.send(());
+  });
+
+  let task = TaskBuilder::new().native().try_future(proc() {
+    machine2.dequeue();
+  });
+
+  stalled_rx.recv();
+
+  machine.stop();
+
+  task.unwrap().unwrap();
 }
 
 #[test]

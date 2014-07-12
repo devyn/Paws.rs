@@ -30,6 +30,10 @@ fn main() {
 
       machine.enqueue(execution_ref.clone(), execution_ref.clone());
 
+      machine.on_stall(proc(machine) {
+        machine.stop();
+      });
+
       // And let's go!
       Reactor::new(machine).run();
     }
