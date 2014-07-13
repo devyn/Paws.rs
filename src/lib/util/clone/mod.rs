@@ -54,8 +54,6 @@ pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
       new_execution.meta_mut().members
         .push_pair_to_child(machine.locals_sym.clone(), new_locals);
 
-      debug!("exe clone members: {}", new_execution.meta().members.vec);
-
       Some(ObjectRef::new_clone_of(from, new_execution))
     },
 
