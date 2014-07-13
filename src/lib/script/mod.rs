@@ -15,8 +15,8 @@ pub enum Instruction {
   /// Push an object onto the stack.
   Push(ObjectRef),
 
-  /// Pop off the stack as the subject, take the response as the message,
-  /// combine, and unstage.
+  /// Pop two items off the stack: the highest item as the message, and the
+  /// second highest as the subject, combine, and then unstage.
   Combine,
 
   /// Drop the top item off the stack, if there was one.
