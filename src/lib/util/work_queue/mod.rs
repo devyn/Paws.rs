@@ -5,7 +5,8 @@
 //! doing work and the queue is empty, so no work can be produced. This is
 //! temporary.
 
-use std::mem;
+use std::collections::RingBuf;
+use std::collections::Deque;
 
 use std::sync::Mutex;
 
@@ -18,18 +19,12 @@ struct QueueRoot<T> {
   stall_notified: bool,
   workers:        uint,
 
-  first:          Box<QueueNode<T>>,
-  last:           *mut QueueNode<T>
+  ring_buf:       RingBuf<T>
 }
 
-enum QueueNode<T> {
-  Nil,
-  Cons(T, Box<QueueNode<T>>)
-}
-
-/// A somewhat efficient blocking FIFO queue based on a linked list and a
-/// mutex, that tracks the number of workers that currently have work and
-/// notifies in the event of a stall.
+/// A blocking FIFO queue based on a ring buffer and a mutex, that tracks the
+/// number of workers that currently have work and notifies in the event of a
+/// stall.
 pub struct WorkQueue<T> {
   root: Mutex<QueueRoot<T>>
 }
@@ -38,17 +33,14 @@ impl<T: 'static+Send+Share> WorkQueue<T> {
   /// Creates a new queue.
   pub fn new() -> WorkQueue<T> {
     WorkQueue {
-      root: Mutex::new({
-        let mut first = box Nil;
-
+      root: Mutex::new(
         QueueRoot {
           alive:          true,
           stall_notified: false,
           workers:        0,
-          last:           &mut *first as *mut QueueNode<T>,
-          first:          first
+          ring_buf:       RingBuf::with_capacity(1)
         }
-      })
+      )
     }
   }
 
@@ -60,12 +52,7 @@ impl<T: 'static+Send+Share> WorkQueue<T> {
 
     if !root.alive { return }
 
-    let last_mut: &mut QueueNode<T> = unsafe { &mut *root.last };
-
-    let mut next = box Nil;
-
-    root.last = &mut *next as *mut QueueNode<T>;
-    *last_mut = Cons(message, next);
+    root.ring_buf.push_back(message);
 
     root.stall_notified = false;
 
@@ -81,40 +68,23 @@ impl<T: 'static+Send+Share> WorkQueue<T> {
     loop {
       if !root.alive { return Ended }
 
-      match root.first {
-        box Cons(..) => {
-          // This hack avoids memory allocation when we're moving things around.
-          //
-          // XXX: It's a hack. It works, but it's a hack.
-          let first = mem::replace(&mut root.first, unsafe { mem::zeroed() });
+      if !root.ring_buf.is_empty() { break }
 
-          match first {
-            box Cons(work, next) => {
-              let invalid = mem::replace(&mut root.first, next);
+      if root.workers == 0 && !root.stall_notified {
+        // No work available + no workers = stall, but only if we haven't
+        // already notified (we don't want to generate a 'Stalled' message
+        // twice)
+        root.stall_notified = true;
+        return Stalled
 
-              // If we don't do this, Rust will try to drop() some invalid data.
-              unsafe { mem::forget(invalid); }
-
-              root.workers += 1;
-
-              return Work(WorkGuard::new(work, self));
-            },
-            _ => unreachable!()
-          }
-        },
-        box Nil =>
-          if root.workers == 0 && !root.stall_notified {
-            // No work available + no workers = stall, but only if we haven't
-            // already notified (we don't want to generate a 'Stalled' message
-            // twice)
-            root.stall_notified = true;
-            return Stalled
-
-          } else {
-            root.cond.wait()
-          }
+      } else {
+        root.cond.wait()
       }
     }
+
+    root.workers += 1;
+
+    Work(WorkGuard::new(root.ring_buf.pop_front().unwrap(), self))
   }
 
   /// Forcibly ends the queue. All messages remaining in the queue are dropped
@@ -126,9 +96,8 @@ impl<T: 'static+Send+Share> WorkQueue<T> {
   pub fn end(&self) {
     let mut root = self.root.lock();
 
-    root.alive = false;
-    root.first = unsafe { mem::zeroed() };
-    root.last  = unsafe { mem::zeroed() };
+    root.alive    = false;
+    root.ring_buf = RingBuf::new();
 
     root.cond.broadcast();
   }
