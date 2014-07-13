@@ -20,6 +20,7 @@ use getopts::{OptionDuplicated, UnexpectedArgument};
 use paws::cpaws;
 use paws::machine::{Machine, Reactor};
 use paws::object::execution::Execution;
+use paws::specification::Suite;
 
 #[start]
 fn start(argc: int, argv: **u8) -> int {
@@ -56,6 +57,12 @@ fn help() {
       Note: this is highly experimental, and is more likely to result in a
       decrease in performance than an increase.
 
+    {cyan}--spec{reset}
+      Runs Paws.rs in specification mode, allowing it to run tests provided by
+      the Paws Rulebook. The output conforms to the Test Anything Protocol.
+
+      This option implies {cyan}--no-stall{reset}.
+
     {cyan}-h, --help{reset}
       Displays this message.
 
@@ -80,7 +87,9 @@ fn main() {
           optopt("R", "reactors", "", ""),
 
     optflagmulti("",  "no-stall", ""),
-    optflagmulti("",     "stall", "")
+    optflagmulti("",     "stall", ""),
+
+         optflag("",      "spec", "")
   ];
 
   let matches = match getopts(args.tail(), opts) {
@@ -129,9 +138,12 @@ fn main() {
     no_stall = true;
   }
 
-  // Now get input, either from stdin or a file
-  let input:    String;
-  let filename: String;
+  // Flag: --spec
+  let spec_ = matches.opt_present("spec");
+
+  // Now get input, either from stdin or files
+  let input;
+  let filename;
 
   if matches.free.len() > 1 {
     format_args!(argument_error,
@@ -165,15 +177,22 @@ fn main() {
   // Set up machine as requested
   let machine = Machine::new();
 
-  if no_stall {
-    machine.on_stall(proc(machine) {
-      machine.stop();
-    });
-  }
+  if spec_ {
+    // Parse and stage input (in spec mode)
+    if !spec(&machine, input.as_slice(), filename.as_slice()) {
+      return
+    }
+  } else {
+    if no_stall {
+      machine.on_stall(proc(machine) {
+        machine.stop();
+      });
+    }
 
-  // Parse and stage input
-  if !eval(&machine, input.as_slice(), filename.as_slice()) {
-    return
+    // Parse and stage input
+    if !eval(&machine, input.as_slice(), filename.as_slice()) {
+      return
+    }
   }
 
   // Spawn reactors
@@ -253,6 +272,43 @@ fn eval(machine: &Machine, input: &str, filename: &str) -> bool {
 
       // and stage!
       machine.enqueue(execution_ref.clone(), execution_ref.clone());
+
+      true
+    }
+
+    Err(message) => {
+      format_args!(generic_error, "Parse error: {}", message);
+      false
+    }
+  }
+}
+
+fn spec(machine: &Machine, input: &str, filename: &str) -> bool {
+  match cpaws::parse_nodes(input.as_slice(), filename) {
+    Ok(nodes) => {
+      let suite = Suite::new();
+
+      // Compile an execution...
+      let script        = cpaws::build_script(machine, nodes.as_slice());
+      let execution_ref = machine.execution(script);
+
+      // ...expose the system interface to it...
+      machine.expose_system_to(
+        &mut *execution_ref.lock().try_cast::<Execution>()
+                                  .ok().unwrap());
+
+      // ...expose the specification interface to it...
+      suite.expose_to(&mut *execution_ref.lock().try_cast::<Execution>()
+                              .ok().unwrap(),
+                      machine);
+
+      // and stage!
+      machine.enqueue(execution_ref.clone(), execution_ref.clone());
+
+      // Then, run the suite once that stalls.
+      machine.on_stall(proc(machine) {
+        suite.run(machine);
+      });
 
       true
     }

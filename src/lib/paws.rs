@@ -32,5 +32,6 @@ pub mod object;
 pub mod script;
 pub mod machine;
 pub mod system;
+pub mod specification;
 
 mod util;
