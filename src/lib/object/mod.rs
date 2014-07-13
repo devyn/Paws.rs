@@ -1,7 +1,7 @@
 //! Paws objects, encapsulation, and metadata.
 
 use std::any::*;
-use sync::{Arc, Mutex, MutexGuard};
+use std::sync::{Arc, Mutex, MutexGuard};
 use std::io::IoResult;
 use std::fmt::Show;
 use std::fmt;
@@ -157,6 +157,8 @@ impl ObjectRef {
   /// The Object can be accessed via the returned RAII guard. The returned guard
   /// also contains a reference to this ObjectRef.
   pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
+    debug!("lock {}", self);
+
     ObjectRefGuard {
       object_ref: self,
       guard:      self.reference.lock()

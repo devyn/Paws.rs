@@ -1,6 +1,6 @@
 use util::work_queue::*;
 
-use sync::Arc;
+use std::sync::Arc;
 use std::task::TaskBuilder;
 use native::NativeTaskBuilder;
 

@@ -22,7 +22,7 @@ use util::clone;
 
 use std::mem::replace;
 
-use sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex};
 
 pub use util::work_queue::WorkGuard;
 

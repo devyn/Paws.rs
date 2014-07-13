@@ -21,8 +21,6 @@
 
 #![warn(missing_doc)]
 
-extern crate collections;
-extern crate sync;
 extern crate native;
 extern crate term;
 

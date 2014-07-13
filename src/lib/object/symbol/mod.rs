@@ -3,7 +3,7 @@
 use object::*;
 
 use std::io::IoResult;
-use sync::Arc;
+use std::sync::Arc;
 use std::collections::HashMap;
 
 #[cfg(test)]

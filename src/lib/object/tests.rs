@@ -4,7 +4,7 @@ use object::symbol::Symbol;
 
 use machine::*;
 
-use sync::Arc;
+use std::sync::Arc;
 
 #[test]
 fn members_set_and_get() {

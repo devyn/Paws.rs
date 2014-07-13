@@ -11,7 +11,7 @@
 
 use std::io::IoResult;
 
-use sync::Arc;
+use std::sync::Arc;
 
 use script::*;
 use object::*;

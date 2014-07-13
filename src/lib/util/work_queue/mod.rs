@@ -7,7 +7,7 @@
 
 use std::mem;
 
-use sync::Mutex;
+use std::sync::Mutex;
 
 #[cfg(test)]
 mod tests;
