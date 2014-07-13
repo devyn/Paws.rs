@@ -42,7 +42,7 @@ pub struct Machine {
   /// A Symbol for "locals" used internally to affix Executions' locals onto
   /// them, as well as for comparison. Purely an optimization to avoid locking
   /// the symbol map; not strictly necessary.
-      locals_sym:     ObjectRef,
+  pub locals_sym:     ObjectRef,
 
   /// The receive-end of the main execution realization queue. Reactors pull
   /// from this.

@@ -3,8 +3,7 @@
 use std::str::Chars;
 use std::char::is_whitespace;
 
-use script;
-use script::Script;
+use script::*;
 use machine::Machine;
 
 #[cfg(test)]
@@ -215,30 +214,51 @@ fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> String {
 
 /// Converts a slice of cPaws nodes into a Paws Script.
 pub fn build_script(machine: &Machine, nodes: &[Node]) -> Script {
-  Script(
-    nodes.iter().map(|node|
-      cpaws_node_to_script_node(machine, node)
-    ).collect()
-  )
+  Script({
+    let mut instructions = vec![Discard, PushLocals]; // pristine
+
+    for node in nodes.iter() {
+      compile(machine, &mut instructions, node);
+    }
+
+    debug!("build_script instructions: {}", instructions);
+
+    instructions
+  })
 }
 
-/// Converts `cpaws::Node` -> `script::Node` for a given Machine.
-fn cpaws_node_to_script_node(machine: &Machine,
-                             node:    &Node)
-                             -> script::Node {
+/// Compiles a `Node` into instructions and places them on a vector.
+fn compile(machine:      &Machine,
+           instructions: &mut Vec<Instruction>,
+           node:         &Node) {
   match node {
-    &Symbol(ref string) =>
-      script::ObjectNode(machine.symbol(string.as_slice())),
+    &Symbol(ref string) => {
+      instructions.push(Push(machine.symbol(string.as_slice())));
+      instructions.push(Combine);
+    },
 
-    &Expression(ref nodes) =>
-      script::ExpressionNode(
-        nodes.iter().map(|node|
-          cpaws_node_to_script_node(machine, node)
-        ).collect()
-      ),
+    &Expression(ref nodes) => {
+      if nodes.is_empty() {
+        // Empty expression special case = "self"
+        instructions.push(PushSelf);
+        instructions.push(Combine);
+      } else {
+        instructions.push(PushLocals);
 
-    &Execution(ref nodes) =>
-      script::ObjectNode(machine.execution(
-        build_script(machine, nodes.as_slice())))
+        for node in nodes.iter() {
+          compile(machine, instructions, node);
+        }
+
+        instructions.push(Combine);
+      }
+    },
+
+    &Execution(ref nodes) => {
+      let execution = machine.execution(
+        build_script(machine, nodes.as_slice()));
+
+      instructions.push(Push(execution));
+      instructions.push(Combine);
+    }
   }
 }

@@ -1,7 +1,7 @@
 use cpaws::*;
 use machine::Machine;
-use script;
-use script::Script;
+use script::*;
+use object::ObjectRef;
 use object::execution;
 
 fn test_parse_nodes(test_case: &str,
@@ -102,29 +102,67 @@ fn parse_nodes_unexpected_terminators() {
   );
 }
 
+enum InstructionExpectation<'a> {
+  ExpectInstruction(Instruction),
+  ExpectPushSymbol(&'a str),
+  ExpectPush(|&ObjectRef|:'a)
+}
+
+fn expect_instructions<'a>(
+                       instructions: &'a [Instruction],
+                       expectations: Vec<InstructionExpectation<'a>>) {
+
+  assert!(instructions.len() == expectations.len(),
+    "expected {} instructions, got {}",
+    expectations.len(), instructions.len());
+
+  for (instruction, expectation)
+      in instructions.iter().zip(expectations.move_iter()) {
+
+    match expectation {
+      ExpectInstruction(ref i) =>
+        if i != instruction {
+          fail!("expected {}, got {}", i, instruction);
+        },
+      ExpectPushSymbol(s) =>
+        match *instruction {
+          Push(ref object)
+            if object.symbol_ref().expect("not a Symbol")
+                 .as_slice() == s => (),
+
+          _ =>
+            fail!("expected Push symbol \"{}\", got {}", s, instruction)
+        },
+      ExpectPush(block) =>
+        match *instruction {
+          Push(ref object) =>
+            block(object),
+
+          _ =>
+            fail!("expected Push(..), got {}", instruction)
+        }
+    }
+  }
+}
+
 #[test]
 fn build_script_symbols() {
   let machine = Machine::new();
   let nodes   = [Symbol("hello".to_string()),
                  Symbol("world".to_string())];
 
-  let Script(script_nodes) = build_script(&machine, nodes);
+  let Script(instructions) = build_script(&machine, nodes);
 
-  assert!(script_nodes.len() == 2);
-
-  match script_nodes.get(0) {
-    &script::ObjectNode(ref object_ref) =>
-      assert!(object_ref.eq_as_symbol(&machine.symbol("hello"))),
-
-    _ => fail!("Expected first node to be an ObjectNode")
-  }
-
-  match script_nodes.get(1) {
-    &script::ObjectNode(ref object_ref) =>
-      assert!(object_ref.eq_as_symbol(&machine.symbol("world"))),
-
-    _ => fail!("Expected second node to be an ObjectNode")
-  }
+  expect_instructions(
+    instructions.as_slice(),
+    vec![
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+      ExpectPushSymbol("hello"),
+      ExpectInstruction(Combine),
+      ExpectPushSymbol("world"),
+      ExpectInstruction(Combine)
+    ]);
 }
 
 #[test]
@@ -134,35 +172,24 @@ fn build_script_expressions() {
                  Expression(vec![Symbol("b".to_string()),
                                  Symbol("c".to_string())])];
 
-  let Script(script_nodes) = build_script(&machine, nodes);
+  let Script(instructions) = build_script(&machine, nodes);
 
-  assert!(script_nodes.len() == 2);
+  expect_instructions(
+    instructions.as_slice(),
+    vec![
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+      ExpectPushSymbol("a"),
 
-  match script_nodes.get(0) {
-    &script::ObjectNode(_) => (),
+      ExpectInstruction(Combine),
+      ExpectInstruction(PushLocals),
+      ExpectPushSymbol("b"),
+      ExpectInstruction(Combine),
 
-    _ => fail!("Expected first node to be an ObjectNode")
-  }
-
-  match script_nodes.get(1) {
-    &script::ExpressionNode(ref subexp_nodes) => {
-      assert!(subexp_nodes.len() == 2);
-
-      match subexp_nodes.get(0) {
-        &script::ObjectNode(_) => (),
-
-        _ => fail!("Expected subexpression's first node to be an ObjectNode")
-      }
-
-      match subexp_nodes.get(1) {
-        &script::ObjectNode(_) => (),
-
-        _ => fail!("Expected subexpression's second node to be an ObjectNode")
-      }
-    },
-
-    _ => fail!("Expected second node to be an ExpressionNode")
-  }
+      ExpectPushSymbol("c"),
+      ExpectInstruction(Combine),
+      ExpectInstruction(Combine)
+    ]);
 }
 
 #[test]
@@ -170,28 +197,29 @@ fn build_script_executions() {
   let machine = Machine::new();
   let nodes   = [Execution(vec![Symbol("a".to_string())])];
 
-  let Script(script_nodes) = build_script(&machine, nodes);
+  let Script(instructions) = build_script(&machine, nodes);
 
-  assert!(script_nodes.len() == 1);
+  expect_instructions(
+    instructions.as_slice(),
+    vec![
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+      ExpectPush(|o| {
+        let execution =
+          o.lock().try_cast::<execution::Execution>()
+            .ok().expect("expected Execution");
 
-  match script_nodes.get(0) {
-    &script::ObjectNode(ref object_ref) =>
-      match object_ref.lock().try_cast::<execution::Execution>() {
-        Ok(execution) => {
-          let &Script(ref sub_script_nodes) = execution.deref().root();
+        let Script(ref instructions) = *execution.deref().root();
 
-          assert!(sub_script_nodes.len() == 1)
-
-          match sub_script_nodes.get(0) {
-            &script::ObjectNode(_) => (),
-
-            _ => fail!("Expected execution's first node to be an ObjectNode")
-          }
-        },
-
-        Err(_) => fail!("Expected first node to point at an Execution")
-      },
-
-    _ => fail!("Expected first node to be an ObjectNode")
-  }
+        expect_instructions(
+          instructions.as_slice(),
+          vec![
+            ExpectInstruction(Discard),
+            ExpectInstruction(PushLocals),
+            ExpectPushSymbol("a"),
+            ExpectInstruction(Combine)
+          ]);
+      }),
+      ExpectInstruction(Combine)
+    ]);
 }

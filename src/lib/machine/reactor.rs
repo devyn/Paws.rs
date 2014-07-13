@@ -49,7 +49,7 @@ impl Reactor {
             debug!("realize execution {} \t<-- {}",
               execution_ref, response_ref);
 
-            match execution.advance(execution_ref.clone(), response_ref) {
+            match execution.advance(&execution_ref, response_ref) {
               Some(combination) =>
                 // Calls the receiver and all that jazz, resulting in a
                 // Reaction.

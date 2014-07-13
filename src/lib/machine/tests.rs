@@ -265,9 +265,12 @@ fn react_stop_call() {
   let reactor = Reactor::new(machine.clone());
 
   let caller_ref = machine.execution(
-                     Script(vec![
-                       ObjectNode(machine.symbol("stop")),
-                       ExpressionNode(vec![])]));
+                     Script(vec![Discard,
+                                 PushLocals,
+                                 Push(machine.symbol("stop")),
+                                 Combine,
+                                 PushSelf,
+                                 Combine]));
 
   #[allow(unused_variable)]
   fn stop_routine<'a>(

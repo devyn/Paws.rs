@@ -27,8 +27,7 @@ mod tests;
 #[deriving(Clone)]
 pub struct Execution {
   root:     Arc<Script>,
-  pristine: bool,
-  pc:       Vec<uint>,
+  pc:       uint,
   stack:    Vec<Option<ObjectRef>>,
   meta:     Meta
 }
@@ -38,8 +37,7 @@ impl Execution {
   pub fn new(root: Script) -> Execution {
     Execution {
       root:     Arc::new(root),
-      pristine: true,
-      pc:       Vec::new(),
+      pc:       0,
       stack:    Vec::new(),
       meta:     Meta::with_receiver(stage_receiver)
     }
@@ -51,157 +49,70 @@ impl Execution {
     &*self.root
   }
 
-  /// Advances the Execution, producing a Combination to be staged if the
-  /// Execution is not at the end of its root script.
+  /// Advances the Execution, moving its program counter forward and evaluating
+  /// instructions, ending with either the execution of a Combine instruction or
+  /// completion.
   ///
   /// # Arguments
   ///
+  /// - **machine**: The machine context in which this operation is running.
+  ///
   /// - **self_ref**: The reference to this Execution. Used for interpreting an
   /// empty expression; `[]` results in a reference to this Execution.
+  ///
   /// - **response**: The object this Execution is being sent.
-  pub fn advance(&mut self, self_ref: ObjectRef,
-                 response: ObjectRef) -> Option<Combination> {
+  pub fn advance(&mut self,
+                 self_ref: &ObjectRef,
+                 response: ObjectRef)
+                 -> Option<Combination> {
+    let Script(ref instructions) = *self.root;
 
-    // If the Execution is pristine, we need to disregard the response. This is
-    // just to remind us.
-    let was_pristine = self.pristine;
-
-    if !self.pristine && self.stack.is_empty() && self.pc.is_empty() {
-      // This Execution has been completed; no Combination can be produced.
-      return None;
-    } else if self.pristine {
-      // Execution is pristine and needs to be initialized. Set program counter
-      // to the first node.
-      self.pristine = false;
-      self.pc.push(0);
-    } else {
-      *self.pc.mut_last().unwrap() += 1;
+    if self.pc < instructions.len() {
+      self.stack.push(Some(response));
     }
 
-    match node_at_pc(&*self.root, self.pc.as_slice()) {
-      None => {
-        // If there was no Node after the original pc, the current Node is the
-        // enclosing Expression.
-        self.pc.pop();
+    while self.pc < instructions.len() {
+      let instruction = instructions.get(self.pc);
 
-        // If the pc is empty, this is the end; there is no Combination to be
-        // produced.
-        if self.pc.is_empty() {
-          None
-        } else {
-          // Don't need to worry about disregarding the response, since this
-          // can't possibly happen if the execution was pristine.
-          Some(Combination {
-            subject: self.stack.pop().unwrap(),
-            message: response
+      self.pc += 1;
+
+      debug!("advance {} {} (stack: {})", self_ref, instruction, self.stack);
+
+      match *instruction {
+        PushLocals =>
+          self.stack.push(None),
+
+        PushSelf =>
+          self.stack.push(Some(self_ref.clone())),
+
+        Push(ref object) =>
+          self.stack.push(Some(object.clone())),
+
+        Combine => {
+          let message = self.stack.pop().expect("stack too small");
+          let subject = self.stack.pop().expect("stack too small");
+
+          return Some(Combination {
+            subject: subject,
+            message: message.expect("PushLocals result not allowed as message")
           })
-        }
-      },
+        },
 
-      Some(node_at_pc) => {
-        // Points to the current node while we iterate through expression nodes
-        // until we manage to get an object of some sort.
-        let mut current = node_at_pc;
-
-        // Counts iterations of the loop. The response gets pushed onto the
-        // stack and consumed on the first iteration.
-        let mut iterations = 0u;
-
-        // Contains the response if it is not yet consumed by the first
-        // iteration of #4. The response is consumed if an ExpressionNode is
-        // encountered.
-        let mut response_if_unconsumed =
-          if !was_pristine {
-            Some(response)
-          } else {
-            // If the execution was pristine, we need to disregard the response
-            // and just combine against locals anyway.
-            None
-          };
-
-        // The resulting message of the combination.
-        let mut resulting_message: ObjectRef;
-
-        // Descends into ExpressionNodes until we get to either an empty
-        // ExpressionNode (which has a special meaning) or an ObjectNode.
-        loop {
-          iterations += 1;
-
-          match current {
-            &ExpressionNode(ref nodes) =>
-              if nodes.is_empty() {
-                // An empty ExpressionNode is a special case that refers to this
-                // own Execution. Thus this is treated the same as if we had
-                // found an ObjectNode, but the resulting message is self_ref.
-                resulting_message = self_ref;
-                break;
-              } else {
-                // On the first ExpressionNode iteration through this loop, the
-                // response is consumed and pushed onto the stack for later.
-                if iterations == 1 {
-                  self.stack.push(response_if_unconsumed);
-                } else {
-                  self.stack.push(None);
-                }
-
-                response_if_unconsumed = None;
-
-                // Descend into the ExpressionNode.
-                self.pc.push(0);
-                current = nodes.get(0);
-              },
-
-            &ObjectNode(ref object_ref) => {
-              // Should we encounter an ObjectNode, the object it contains is
-              // the message we combine with.
-              resulting_message = object_ref.clone();
-              break;
-            }
-          }
-        }
-
-        // If we encountered any ExpressionNodes on our path to an object, the
-        // response_if_unconsumed is None, so this is a Combination against the
-        // Execution's locals. Otherwise, it's a Combination against the
-        // response given to this function.
-        Some(Combination {
-          subject: response_if_unconsumed,
-          message: resulting_message
-        })
+        Discard =>
+          { self.stack.pop(); }
       }
     }
-  }
-}
 
-fn node_at_pc<'a>(script: &'a Script, pc: &[uint]) -> Option<&'a Node> {
-
-  let &Script(ref inner_nodes) = script;
-
-  let mut nodes = inner_nodes;
-
-  for &i in pc.init().iter() {
-    match nodes.get(i) {
-      &ExpressionNode(ref inner_nodes) => {
-        nodes = inner_nodes;
-      },
-      _ => fail!("Expected all pc positions except last one to point to \
-                  ExpressionNodes.")
-    }
-  }
-
-  let i = *pc.last().unwrap();
-
-  if i < nodes.len() {
-    Some(nodes.get(i))
-  } else {
-    None
+    None // default (completion)
   }
 }
 
 impl Object for Execution {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
-    try!(write!(writer, "Execution {{ pristine: {}, pc: {}, stack: [",
-      self.pristine, self.pc));
+    let Script(ref instructions) = *self.root;
+
+    try!(write!(writer, "Execution {{ pc: {} => {}, stack: [",
+      self.pc, instructions.get(self.pc)));
 
     let mut stack_iter = self.stack.iter().peekable();
 
