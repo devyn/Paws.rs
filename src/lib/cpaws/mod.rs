@@ -21,7 +21,11 @@ pub enum Node {
   Expression(Vec<Node>),
 
   /// The cPaws representation of an Execution object.
-  Execution(Vec<Node>)
+  Execution(Vec<Node>),
+
+  /// A separator that discards the response and causes further combinations to
+  /// be against locals instead.
+  Semicolon
 }
 
 /// Holds the state of the parser, including character iterator and position.
@@ -96,6 +100,10 @@ fn parse_nodes_until(state: &mut ParserState, terminator: Option<char>)
 
       // Skip whitespace
       Some(c) if is_whitespace(c) => (),
+
+      // Semicolon (discard)
+      Some(';') =>
+        nodes.push(Semicolon),
 
       // [expression]
       Some('[') =>
@@ -196,7 +204,7 @@ fn parse_bare_symbol(state: &mut ParserState, first_char: char) -> String {
         match *c {
           // A bare symbol is ended by any special characters or whitespace
           '{' | '}' | '[' | ']'  => break,
-          '"' | '“' | '”'        => break,
+          '"' | '“' | '”' | ';'  => break,
           _ if is_whitespace(*c) => break,
 
           // Anything else gets to be part of the string
@@ -231,13 +239,13 @@ pub fn build_script(machine: &Machine, nodes: &[Node]) -> Script {
 fn compile(machine:      &Machine,
            instructions: &mut Vec<Instruction>,
            node:         &Node) {
-  match node {
-    &Symbol(ref string) => {
+  match *node {
+    Symbol(ref string) => {
       instructions.push(Push(machine.symbol(string.as_slice())));
       instructions.push(Combine);
     },
 
-    &Expression(ref nodes) => {
+    Expression(ref nodes) => {
       if nodes.is_empty() {
         // Empty expression special case = "self"
         instructions.push(PushSelf);
@@ -253,12 +261,17 @@ fn compile(machine:      &Machine,
       }
     },
 
-    &Execution(ref nodes) => {
+    Execution(ref nodes) => {
       let execution = machine.execution(
         build_script(machine, nodes.as_slice()));
 
       instructions.push(Push(execution));
       instructions.push(Combine);
+    },
+
+    Semicolon => {
+      instructions.push(Discard);
+      instructions.push(PushLocals);
     }
   }
 }

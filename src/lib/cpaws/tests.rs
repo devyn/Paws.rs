@@ -43,7 +43,7 @@ fn parse_nodes_unicode_quotes() {
 #[test]
 fn parse_nodes_expression() {
   test_parse_nodes(
-    "a [b c] d",
+    "a[b c] d",
     Ok(vec![
       Symbol("a".to_string()),
       Expression(vec![
@@ -56,13 +56,25 @@ fn parse_nodes_expression() {
 #[test]
 fn parse_nodes_execution() {
   test_parse_nodes(
-    "a {b c} d",
+    "a{b c} d",
     Ok(vec![
       Symbol("a".to_string()),
       Execution(vec![
         Symbol("b".to_string()),
         Symbol("c".to_string())]),
       Symbol("d".to_string())])
+  )
+}
+
+#[test]
+fn parse_nodes_semicolon() {
+  test_parse_nodes(
+    ";a;\nb",
+    Ok(vec![
+      Semicolon,
+      Symbol("a".to_string()),
+      Semicolon,
+      Symbol("b".to_string())])
   )
 }
 
@@ -220,6 +232,40 @@ fn build_script_executions() {
             ExpectInstruction(Combine)
           ]);
       }),
+      ExpectInstruction(Combine)
+    ]);
+}
+
+#[test]
+fn build_script_semicolons() {
+  let machine = Machine::new();
+  let nodes   = [Semicolon,
+                 Symbol("a".to_string()),
+                 Semicolon,
+                 Symbol("b".to_string()),
+                 Symbol("c".to_string())];
+
+  let Script(instructions) = build_script(&machine, nodes);
+
+  expect_instructions(
+    instructions.as_slice(),
+    vec![
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+
+      ExpectPushSymbol("a"),
+      ExpectInstruction(Combine),
+
+      ExpectInstruction(Discard),
+      ExpectInstruction(PushLocals),
+
+      ExpectPushSymbol("b"),
+      ExpectInstruction(Combine),
+
+      ExpectPushSymbol("c"),
       ExpectInstruction(Combine)
     ]);
 }
