@@ -8,6 +8,7 @@ use object::alien::Alien;
 
 use machine::*;
 
+use util::clone;
 use util::namespace::*;
 
 use std::any::*;
@@ -27,6 +28,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.namespace(    "console",                 console::make                );
     add.factory(      "void",                    void                         );
     add.call_pattern( "stop",                    stop, 0                      );
+    add.call_pattern( "branch",                  branch, 1                    );
   }
 
   ObjectRef::new(implementation).tag("(implementation)")
@@ -94,4 +96,52 @@ pub fn stop(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
             -> Reaction {
   machine.stop();
   Yield
+}
+
+/// Clones an Execution. If the Execution is the caller, both the caller and the
+/// clone are staged with each other.
+///
+/// # Call pattern arguments
+///
+/// 1. An execution to clone.
+///
+/// # Example
+///
+///     implementation branch[] []
+pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
+              -> Reaction {
+  match args {
+    [ref executionish] => {
+      let clone = match clone::queueable(executionish, machine) {
+
+        Some(clone) => clone,
+
+        None => {
+          warn!(concat!("tried to branch {}, which is neither",
+                        " an execution nor an alien"),
+                executionish);
+
+          return Yield
+        }
+      };
+
+      if &caller == executionish {
+        debug!(concat!("branching caller: staging {} (caller) and {} (clone)",
+                       " with each other, clone first"),
+               caller, clone);
+
+        // If we are branching the caller, react both the clone and the caller
+        // with each other -- this ensures both proceed.
+        machine.enqueue(caller.clone(), clone.clone());
+
+        // Give priority to the clone.
+        React(clone, caller)
+      } else {
+        debug!("branching {} (original) => {} (clone)", executionish, clone);
+
+        React(caller, clone)
+      }
+    },
+    _ => fail!("wrong number of arguments")
+  }
 }

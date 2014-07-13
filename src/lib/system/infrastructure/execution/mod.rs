@@ -44,22 +44,7 @@ pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         }
       };
 
-      if &caller == executionish {
-        debug!(concat!("branching caller: staging {} (caller) and {} (clone)",
-                       " with each other, clone first"),
-               caller, clone);
-
-        // If we are branching the caller, react both the clone and the caller
-        // with each other -- this ensures both proceed.
-        machine.enqueue(caller.clone(), clone.clone());
-
-        // Give priority to the clone.
-        React(clone, caller)
-      } else {
-        debug!("branching {} (original) => {} (clone)", executionish, clone);
-
-        React(caller, clone)
-      }
+      React(caller, clone)
     },
     _ => fail!("wrong number of arguments")
   }
