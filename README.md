@@ -12,14 +12,17 @@
 
 ## Running
 
-Without logging:
+    $ build/paws_rs --help
 
-    $ build/paws_rs < path/to/file.paws
+To enable logging:
 
-With logging:
+    $ RUST_LOG=4 build/paws_rs
 
-    $ RUST_LOG="paws=4" build/paws_rs < path/to/file.paws
+There are examples to run in `examples/`. For example,
 
-There are examples to run in `examples/`. You'll have to terminate Paws.rs
-yourself (the usual way, ^C), or add an `implementation stop[]` call in there
-somewhere; otherwise it will run forever.
+    $ build/paws_rs examples/01.hello.world.paws
+
+Paws.rs will run forever by default. To have it end itself when there's no more
+work to be done, use the `--no-stall` option:
+
+    $ build/paws_rs --no-stall examples/01.hello.world.paws
