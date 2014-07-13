@@ -263,7 +263,7 @@ impl Machine {
         ObjectReceiver(receiver) => {
           drop(current_target); // Release the lock ASAP.
 
-          match clone::queueable(&receiver) {
+          match clone::queueable(&receiver, self) {
             Some(clone) => {
               // If it is, we construct a params object `[, caller, subject,
               // message]` and `React` a clone of the receiver with the params

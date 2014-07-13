@@ -9,10 +9,13 @@
 //!     clone::to_thing(...);
 //!     clone::queueable(...);
 
+use machine::Machine;
+
 use object::*;
 use object::execution::Execution;
 use object::alien::Alien;
 use object::thing::Thing;
+use object::locals::Locals;
 
 /// Creates a new Thing from the metadata of the given object.
 pub fn to_thing(from: &ObjectRef) -> Thing {
@@ -29,13 +32,32 @@ pub fn to_thing(from: &ObjectRef) -> Thing {
 /// Correctly clones `Execution`s *or* `Alien`s.
 ///
 /// Useful because in Paws-world, they're supposed to behave the same way.
-pub fn queueable(from: &ObjectRef) -> Option<ObjectRef> {
+pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
   // XXX: This currently clones the receiver too... should it not?
 
   match from.lock().try_cast::<Execution>() {
 
-    Ok(execution) =>
-      Some(ObjectRef::new_clone_of(from, box execution.deref().clone())),
+    Ok(execution) => {
+      let mut new_execution = box execution.deref().clone();
+
+      let locals = execution.deref().meta().members
+                     .lookup_pair(&machine.locals_sym)
+                     .expect("Execution is missing locals!");
+
+      execution.unlock();
+
+      let new_locals = ObjectRef::new_clone_of(&locals,
+        box locals.lock().try_cast::<Locals>()
+              .ok().expect("locals should be a Locals!")
+              .clone());
+
+      new_execution.meta_mut().members
+        .push_pair_to_child(machine.locals_sym.clone(), new_locals);
+
+      debug!("exe clone members: {}", new_execution.meta().members.vec);
+
+      Some(ObjectRef::new_clone_of(from, new_execution))
+    },
 
     Err(unknown) => match unknown.try_cast::<Alien>() {
 

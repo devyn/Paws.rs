@@ -31,7 +31,7 @@ pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
               -> Reaction {
   match args {
     [ref executionish] => {
-      let clone = match clone::queueable(executionish) {
+      let clone = match clone::queueable(executionish, machine) {
 
         Some(clone) => clone,
 

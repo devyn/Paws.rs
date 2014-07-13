@@ -157,6 +157,8 @@ impl ObjectRef {
   /// The Object can be accessed via the returned RAII guard. The returned guard
   /// also contains a reference to this ObjectRef.
   pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
+    debug!("lock {}", self);
+
     ObjectRefGuard {
       object_ref: self,
       guard:      self.reference.lock()
@@ -361,7 +363,7 @@ impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
 }
 
 /// A link to an object, to be referenced within an object's 'members' list.
-#[deriving(Clone, Eq, PartialEq)]
+#[deriving(Clone, Eq, PartialEq, Show)]
 pub struct Relationship {
   to:       ObjectRef,
   is_child: bool

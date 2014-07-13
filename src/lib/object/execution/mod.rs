@@ -150,7 +150,7 @@ impl Object for Execution {
 /// enqueues the clone with the message.
 #[allow(unused_variable)]
 pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
-  match clone::queueable(&params.subject) {
+  match clone::queueable(&params.subject, machine) {
     Some(clone) => {
       debug!("stage_receiver: {} cloned to {} <-- {}",
              params.subject, clone, params.message);
