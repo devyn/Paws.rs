@@ -31,7 +31,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "branch",                  branch, 1                    );
   }
 
-  ObjectRef::new(implementation).tag("(implementation)")
+  ObjectRef::new_with_tag(implementation, "(implementation)")
 }
 
 /// Acts as a void, accepting and discarding objects and then returning itself

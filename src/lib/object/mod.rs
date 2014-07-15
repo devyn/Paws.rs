@@ -104,39 +104,45 @@ pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
 /// underneath.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  reference:  Arc<Mutex<Box<Object+Send+Share>>>,
+  i: Arc<ObjectRefInternal>
+}
+
+struct ObjectRefInternal {
+  reference:  Mutex<Box<Object+Send+Share>>,
+
+  /// For lockless symbol comparison.
   symbol_ref: Option<Arc<String>>,
 
-  /// Allows tagging references, which makes debug output clearer. Adds overhead
-  /// though, so is removed for non-debug builds.
-  #[cfg(not(ndebug))]
+  /// Allows tagging references, which makes debug output clearer.
   tag:        Option<Arc<String>>
 }
 
 impl ObjectRef {
   /// Boxes an Object trait into an Object reference.
   pub fn new(object: Box<Object+Send+Share>) -> ObjectRef {
-    ObjectRef::make_internal(Arc::new(Mutex::new(object)), None)
+    ObjectRef {
+      i: Arc::new(ObjectRefInternal {
+        reference:  Mutex::new(object),
+        symbol_ref: None,
+        tag:        None
+      })
+    }
   }
 
-  /// Boxes an Object trait into an Object reference, preserving the tag of the
-  /// original from which it was cloned.
-  pub fn new_clone_of(original: &ObjectRef, object: Box<Object+Send+Share>)
+  /// Boxes an Object trait into an Object reference along with a tag for better
+  /// debug output. Affects the result of the `Show` trait.
+  pub fn new_with_tag<T: Tag>(
+                      object: Box<Object+Send+Share>,
+                      tag:    T)
                       -> ObjectRef {
 
-    #[cfg(not(ndebug))]
-    fn clone_tag(from: &ObjectRef, to: &mut ObjectRef) {
-      to.tag = from.tag.clone();
+    ObjectRef {
+      i: Arc::new(ObjectRefInternal {
+        reference:  Mutex::new(object),
+        symbol_ref: None,
+        tag:        tag.to_tag()
+      })
     }
-
-    #[cfg(ndebug)]
-    fn clone_tag(_: &ObjectRef, _: &mut ObjectRef) { }
-
-    let mut r = ObjectRef::make_internal(Arc::new(Mutex::new(object)), None);
-
-    clone_tag(original, &mut r);
-
-    r
   }
 
   /// Boxes a Symbol into a Symbol reference.
@@ -146,10 +152,13 @@ impl ObjectRef {
   /// assumed to have been created this way; behavior is undefined if they are
   /// created with `ObjectRef::new()` instead.
   pub fn new_symbol(symbol: Box<symbol::Symbol>) -> ObjectRef {
-    let symbol_ref = Some(symbol.name_ptr());
-    let reference  = Arc::new(Mutex::new(symbol as Box<Object+Send+Share>));
-
-    ObjectRef::make_internal(reference, symbol_ref)
+    ObjectRef {
+      i: Arc::new(ObjectRefInternal {
+        symbol_ref: Some(symbol.name_ptr()),
+        reference:  Mutex::new(symbol as Box<Object+Send+Share>),
+        tag:        None
+      })
+    }
   }
 
   /// Obtain exclusive access to the Object this reference points to.
@@ -159,14 +168,14 @@ impl ObjectRef {
   pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
     ObjectRefGuard {
       object_ref: self,
-      guard:      self.reference.lock()
+      guard:      self.i.reference.lock()
     }
   }
 
   /// Returns true if both `ObjectRef`s are Symbol references that point at the
   /// same Symbol string.
   pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
-    match (&self.symbol_ref, &other.symbol_ref) {
+    match (&self.i.symbol_ref, &other.i.symbol_ref) {
       (&Some(ref a), &Some(ref b)) =>
         (&**a as *const String) == (&**b as *const String),
 
@@ -177,90 +186,89 @@ impl ObjectRef {
   /// If this `ObjectRef` is a Symbol reference, returns a reference to the
   /// pointer to the Symbol's name.
   pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<String>> {
-    self.symbol_ref.as_ref()
+    self.i.symbol_ref.as_ref()
   }
 
-  /// Allows this `ObjectRef` to be tagged with a string for better debugging
-  /// output.
-  ///
-  /// The tag will not be added if this is the `ndebug` configuration (`--cfg
-  /// ndebug` argument to `rustc`).
-  pub fn tag(mut self, string: &str) -> ObjectRef {
-    #[cfg(not(ndebug))]
-    fn tag_internal(object_ref: &mut ObjectRef, string: &str) {
-      object_ref.tag = Some(Arc::new(string.to_string()));
-    }
-
-    #[cfg(ndebug)]
-    fn tag_internal(_: &mut ObjectRef, _: &str) { }
-
-    tag_internal(&mut self, string);
-
-    self
-  }
-
-  #[cfg(ndebug)]
-  fn make_internal(reference:  Arc<Mutex<Box<Object+Send+Share>>>,
-                   symbol_ref: Option<Arc<String>>)
-                   -> ObjectRef {
-    ObjectRef {
-      reference:  reference,
-      symbol_ref: symbol_ref
-    }
-  }
-
-  #[cfg(not(ndebug))]
-  fn make_internal(reference:  Arc<Mutex<Box<Object+Send+Share>>>,
-                   symbol_ref: Option<Arc<String>>)
-                   -> ObjectRef {
-    ObjectRef {
-      reference:  reference,
-      symbol_ref: symbol_ref,
-      tag:        None
-    }
+  /// If this `ObjectRef` is a reference to something with a tag, returns a
+  /// reference to the String representing the tag.
+  pub fn tag<'a>(&'a self) -> Option<&'a Arc<String>> {
+    self.i.tag.as_ref()
   }
 }
 
 impl PartialEq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.reference  as *const Mutex<Box<Object+Send+Share>>) ==
-    (&*other.reference as *const Mutex<Box<Object+Send+Share>>)
+    (&*self.i  as *const ObjectRefInternal) ==
+    (&*other.i as *const ObjectRefInternal)
   }
 }
 
 impl Eq for ObjectRef { }
 
 impl Show for ObjectRef {
-  #[cfg(not(ndebug))]
   fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
-    match self.tag {
+    match self.i.tag {
       Some(ref tag) =>
-        match self.symbol_ref {
-          Some(ref string) =>
-            write!(out, "[:{:s} ~{:s}]", string.as_slice(), tag.as_slice()),
-          None =>
-            write!(out, "[#{:p} ~{:s}]", &*self.reference, tag.as_slice())
-        },
+        write!(out, "[#{:p} ~{:s}]", &*self.i, tag.as_slice()),
 
       _ =>
-        match self.symbol_ref {
+        match self.i.symbol_ref {
           Some(ref string) =>
             write!(out, "[:{:s}]", string.as_slice()),
           None =>
-            write!(out, "[#{:p}]", &*self.reference)
+            write!(out, "[#{:p}]", &*self.i)
         }
     }
 
   }
+}
 
-  #[cfg(ndebug)]
-  fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
-    match self.symbol_ref {
-      Some(ref string) =>
-        write!(out, "[:{:s}]", string.as_slice()),
-      None =>
-        write!(out, "[#{:p}]", &*self.reference)
-    }
+/// A trait to allow `ObjectRef::new_with_tag()` to be called with several
+/// different natural values for tags. This means that both
+///
+///     ObjectRef::new_with_tag(box object, "my object")
+///
+/// and
+///
+///     ObjectRef::new_with_tag(box object, original.tag())
+///
+/// will work, among other variations.
+pub trait Tag {
+  /// Make an optional `Arc` to a `String`, which is the internal representation
+  /// of a possible tag on an `ObjectRef`.
+  ///
+  /// It's wrapped in an `Option` so that we can use this with the result of
+  /// `ObjectRef::tag()` directly.
+  fn to_tag(&self) -> Option<Arc<String>>;
+}
+
+impl Tag for Arc<String> {
+  fn to_tag(&self) -> Option<Arc<String>> {
+    Some(self.clone())
+  }
+}
+
+impl Tag for String {
+  fn to_tag(&self) -> Option<Arc<String>> {
+    Some(Arc::new(self.clone()))
+  }
+}
+
+impl<'a> Tag for &'a str {
+  fn to_tag(&self) -> Option<Arc<String>> {
+    Some(Arc::new(self.to_string()))
+  }
+}
+
+impl<'a, T: Tag> Tag for &'a T {
+  fn to_tag(&self) -> Option<Arc<String>> {
+    self.to_tag()
+  }
+}
+
+impl<T: Tag> Tag for Option<T> {
+  fn to_tag(&self) -> Option<Arc<String>> {
+    self.as_ref().and_then(|t| t.to_tag())
   }
 }
 

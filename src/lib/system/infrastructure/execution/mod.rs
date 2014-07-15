@@ -24,7 +24,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "unstage",                 unstage, 0                   );
   }
 
-  ObjectRef::new(execution).tag("(infra. execution)")
+  ObjectRef::new_with_tag(execution, "(infra. execution)")
 }
 
 pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])

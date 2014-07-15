@@ -22,7 +22,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "explode",                 explode, 1                   );
   }
 
-  ObjectRef::new(label).tag("(infra. label)")
+  ObjectRef::new_with_tag(label, "(infra. label)")
 }
 
 pub fn clone(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])

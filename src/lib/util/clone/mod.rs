@@ -46,21 +46,22 @@ pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
 
       execution.unlock();
 
-      let new_locals = ObjectRef::new_clone_of(&locals,
+      let new_locals = ObjectRef::new_with_tag(
         box locals.lock().try_cast::<Locals>()
               .ok().expect("locals should be a Locals!")
-              .clone());
+              .clone(),
+        locals.tag());
 
       new_execution.meta_mut().members
         .push_pair_to_child(machine.locals_sym.clone(), new_locals);
 
-      Some(ObjectRef::new_clone_of(from, new_execution))
+      Some(ObjectRef::new_with_tag(new_execution, from.tag()))
     },
 
     Err(unknown) => match unknown.try_cast::<Alien>() {
 
       Ok(alien) =>
-        Some(ObjectRef::new_clone_of(from, box alien.deref().clone())),
+        Some(ObjectRef::new_with_tag(box alien.deref().clone(), from.tag())),
 
       Err(_) =>
         None

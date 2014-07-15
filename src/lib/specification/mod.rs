@@ -34,7 +34,8 @@ impl Suite {
     specification.meta_mut().members
       .push_pair(machine.symbol("rule"), self.rule_alien());
 
-    let specification  = ObjectRef::new(specification).tag("(specification)");
+    let specification  = ObjectRef::new_with_tag(specification, 
+                                               "(specification)");
 
     let     locals_ref = execution.meta_mut().members
                            .lookup_pair(&machine.locals_sym).unwrap();

@@ -27,7 +27,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "trace",                   trace, 1                     );
   }
 
-  ObjectRef::new(console).tag("(impl. console)")
+  ObjectRef::new_with_tag(console, "(impl. console)")
 }
 
 /// Prints a Symbol to stdout. Doesn't return. Oneshot.

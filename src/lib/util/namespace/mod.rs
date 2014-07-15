@@ -32,7 +32,7 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box factory(self.machine)).tag(name)
+      ObjectRef::new_with_tag(box factory(self.machine), name)
     );
   }
 
@@ -44,7 +44,8 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box Alien::new_call_pattern(routine, n_args)).tag(name)
+      ObjectRef::new_with_tag(box
+        Alien::new_call_pattern(routine, n_args), name)
     );
   }
 
@@ -55,7 +56,8 @@ impl<'a> NamespaceBuilder<'a> {
 
     self.thing.meta_mut().members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new(box Alien::new_oneshot(routine)).tag(name)
+      ObjectRef::new_with_tag(box
+        Alien::new_oneshot(routine), name)
     );
   }
 
