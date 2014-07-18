@@ -28,14 +28,14 @@ pub struct Alien {
 
   /// Routine-specific (non-generic) data. Often used to store multiple
   /// arguments when implementing the nuclear call-pattern.
-  pub data:    Box<Data+'static+Send+Share>,
+  pub data:    Box<Data+Send+Share>,
 
       meta:    Meta
 }
 
 impl Alien {
   /// Construct an Alien around a given `Routine`.
-  pub fn new(routine: Routine, data: Box<Data+'static+Send+Share>) -> Alien {
+  pub fn new(routine: Routine, data: Box<Data+Send+Share>) -> Alien {
     Alien {
       routine: routine,
       data:    data,
@@ -55,7 +55,7 @@ impl Alien {
     };
 
     Alien::new(call_pattern_alien_routine,
-               call_pattern_data as Box<Data+'static+Send+Share>)
+               call_pattern_data as Box<Data+Send+Share>)
   }
 
   /// Construct a oneshot Alien which calls the given `OneshotRoutine` for only
@@ -67,7 +67,7 @@ impl Alien {
     };
 
     Alien::new(oneshot_alien_routine,
-               oneshot_data as Box<Data+'static+Send+Share>)
+               oneshot_data as Box<Data+Send+Share>)
   }
 
   /// Turn the function inside a `NativeReceiver` into an Alien.
@@ -132,9 +132,9 @@ impl Clone for Alien {
 ///
 /// Used to get around the restriction that `clone()` can't be called on a trait
 /// object, to allow `Alien` to still be cloneable. This is a huge hack.
-pub trait Data {
+pub trait Data: Any {
   /// Clones and boxes into a `Data` trait object.
-  fn clone_to_data(&self) -> Box<Data+'static+Send+Share>;
+  fn clone_to_data(&self) -> Box<Data+Send+Share>;
 
   /// Gets this Data as an Any reference. Not generally necessary as `AnyRefExt`
   /// is implemented, but it is necessary in order to implement `AnyRefExt` in
@@ -152,8 +152,8 @@ pub trait Data {
 }
 
 impl<T: 'static+Clone+Send+Share> Data for T {
-  fn clone_to_data(&self) -> Box<Data+'static+Send+Share> {
-    box self.clone() as Box<Data+'static+Send+Share>
+  fn clone_to_data(&self) -> Box<Data+Send+Share> {
+    box self.clone() as Box<Data+Send+Share>
   }
 }
 

@@ -170,7 +170,7 @@ pub fn length(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 
       // We subtract 1 from the length because the noughty (#0) is not counted;
       // this is the length of the "data"-members.
-      React(caller, machine.symbol((length - 1).to_str().as_slice()))
+      React(caller, machine.symbol((length - 1).to_string().as_slice()))
     },
     _ => fail!("wrong number of arguments")
   }

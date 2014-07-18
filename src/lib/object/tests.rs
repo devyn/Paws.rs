@@ -64,15 +64,15 @@ fn members_own_and_disown() {
 
   members.vec.push(Some(Relationship::new(object.clone())));
 
-  assert!(!members.vec.get(0).get_ref().is_child());
+  assert!(!members.vec[0].get_ref().is_child());
 
   members.own(0);
 
-  assert!( members.vec.get(0).get_ref().is_child());
+  assert!( members.vec[0].get_ref().is_child());
 
   members.disown(0);
 
-  assert!(!members.vec.get(0).get_ref().is_child());
+  assert!(!members.vec[0].get_ref().is_child());
 }
 
 #[test]
@@ -85,11 +85,11 @@ fn members_push() {
   members.push(      object1.clone());
   members.push_child(object2.clone());
 
-  assert!(!members.vec.get(1).get_ref().is_child());
-  assert!( members.vec.get(1).get_ref().to() == &object1);
+  assert!(!members.vec[1].get_ref().is_child());
+  assert!( members.vec[1].get_ref().to() == &object1);
 
-  assert!( members.vec.get(2).get_ref().is_child());
-  assert!( members.vec.get(2).get_ref().to() == &object2);
+  assert!( members.vec[2].get_ref().is_child());
+  assert!( members.vec[2].get_ref().to() == &object2);
 }
 
 #[test]
@@ -121,11 +121,11 @@ fn members_unshift() {
   members.unshift(      object1.clone());
   members.unshift_child(object2.clone());
 
-  assert!( members.vec.get(1).get_ref().is_child());
-  assert!( members.vec.get(1).get_ref().to() == &object2);
+  assert!( members.vec[1].get_ref().is_child());
+  assert!( members.vec[1].get_ref().to() == &object2);
 
-  assert!(!members.vec.get(2).get_ref().is_child());
-  assert!( members.vec.get(2).get_ref().to() == &object1);
+  assert!(!members.vec[2].get_ref().is_child());
+  assert!( members.vec[2].get_ref().to() == &object1);
 }
 
 #[test]
@@ -212,7 +212,7 @@ fn members_delete() {
   assert!(members.delete(0) == Some(Relationship::new(object0)));
 
   assert!(members.vec.len() == 1);
-  assert!(members.vec.get(0).is_none());
+  assert!(members.vec[0].is_none());
 }
 
 #[test]
@@ -321,9 +321,9 @@ fn members_expand_to() {
   members.expand_to(3);
   assert!(members.vec.len() == 3);
 
-  assert!(members.vec.get(0).is_none());
-  assert!(members.vec.get(1).is_none());
-  assert!(members.vec.get(2).is_none());
+  assert!(members.vec[0].is_none());
+  assert!(members.vec[1].is_none());
+  assert!(members.vec[2].is_none());
 }
 
 #[test]

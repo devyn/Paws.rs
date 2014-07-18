@@ -22,7 +22,7 @@ mod members;
 mod tests;
 
 /// The interface that all Paws Objects must implement.
-pub trait Object {
+pub trait Object: Any {
   /// Formats a Paws Object for debugging purposes.
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()>;
 
@@ -168,7 +168,7 @@ impl ObjectRef {
   pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
     match (&self.symbol_ref, &other.symbol_ref) {
       (&Some(ref a), &Some(ref b)) =>
-        (&**a as *String) == (&**b as *String),
+        (&**a as *const String) == (&**b as *const String),
 
       _ => false
     }
@@ -223,8 +223,8 @@ impl ObjectRef {
 
 impl PartialEq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.reference  as *Mutex<Box<Object+Send+Share>>) ==
-    (&*other.reference as *Mutex<Box<Object+Send+Share>>)
+    (&*self.reference  as *const Mutex<Box<Object+Send+Share>>) ==
+    (&*other.reference as *const Mutex<Box<Object+Send+Share>>)
   }
 }
 

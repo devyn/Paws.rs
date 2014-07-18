@@ -5,7 +5,7 @@ RUSTDOC     = rustdoc
 RUSTFLAGS   =
 
 LIBSRC      = src/lib/paws.rs
-LIBOUT      = ${BUILDDIR}/$(shell ${RUSTC} --crate-file-name ${LIBSRC})
+LIBOUT      = ${BUILDDIR}/$(shell ${RUSTC} --print-file-name ${LIBSRC})
 LIBDEPINFO  = $(dir ${LIBOUT})tmp/$(notdir ${LIBOUT})-deps.mk
 
 TESTSRC     = ${LIBSRC}

@@ -12,7 +12,7 @@
 //!
 //! See the [specification](http://ell.io/spec) for more information.
 
-#![crate_id = "paws#0.1"]
+#![crate_name = "paws"]
 #![crate_type = "lib"]
 
 #![feature(globs)]

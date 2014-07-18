@@ -23,7 +23,7 @@ use paws::object::execution::Execution;
 use paws::specification::Suite;
 
 #[start]
-fn start(argc: int, argv: **u8) -> int {
+fn start(argc: int, argv: *const *const u8) -> int {
   // Make sure we use the native (not green thread) runtime
   native::start(argc, argv, main)
 }
@@ -68,7 +68,7 @@ fn help() {
 
                                                {white}~devyn ({blue}{underline}https://github.com/devyn{reset}{white}){reset}
 ",
-  program   = os::args().get(0),
+  program   = os::args()[0],
   reset     = "\x1b[0m",
   bold      = "\x1b[1m",
   underline = "\x1b[4m",
@@ -155,13 +155,13 @@ fn main() {
     return
 
   } else if matches.free.is_empty() {
-    input    = io::stdin().read_to_str().unwrap();
+    input    = io::stdin().read_to_string().unwrap();
     filename = "<stdin>".to_string();
 
   } else {
-    let path = Path::new(matches.free.get(0).as_slice());
+    let path = Path::new(matches.free[0].as_slice());
 
-    match File::open(&path).read_to_str() {
+    match File::open(&path).read_to_string() {
       Ok(string) => {
         input    = string;
         filename = format!("{}", path.display());
@@ -203,7 +203,7 @@ fn main() {
 
   // Wait for reactors to finish
   for task in reactor_pool.move_iter() {
-    task.unwrap().unwrap();
+    task.unwrap().ok().unwrap();
   }
 }
 
@@ -253,7 +253,7 @@ fn argument_error(args: &fmt::Arguments) {
                   "    $ {} --help\n",
                   "\n",
                   "might help you figure out what went wrong.\n"),
-          os::args().get(0))).unwrap();
+          os::args()[0])).unwrap();
 
   os::set_exit_status(1);
 }

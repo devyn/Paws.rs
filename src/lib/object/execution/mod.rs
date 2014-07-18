@@ -72,7 +72,7 @@ impl Execution {
     }
 
     while self.pc < instructions.len() {
-      let instruction = instructions.get(self.pc);
+      let instruction = &instructions[self.pc];
 
       self.pc += 1;
 
@@ -112,7 +112,7 @@ impl Object for Execution {
     let Script(ref instructions) = *self.root;
 
     try!(write!(writer, "Execution {{ pc: {} => {}, stack: [",
-      self.pc, instructions.get(self.pc)));
+      self.pc, instructions[self.pc]));
 
     let mut stack_iter = self.stack.iter().peekable();
 

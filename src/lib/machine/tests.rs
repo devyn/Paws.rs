@@ -256,7 +256,7 @@ fn machine_stall_handlers() {
 
   machine.stop();
 
-  task.unwrap().unwrap();
+  task.unwrap().ok().unwrap();
 }
 
 #[test]

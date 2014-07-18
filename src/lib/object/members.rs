@@ -37,7 +37,7 @@ impl Members {
     if index >= self.len() {
       None
     } else {
-      self.vec.get(index).as_ref()
+      self.vec[index].as_ref()
     }
   }
 

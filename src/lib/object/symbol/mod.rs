@@ -100,7 +100,7 @@ impl Symbol {
   /// Returns true if the Arc pointer in this Symbol points at the same string
   /// as the Arc pointer in the other Symbol.
   pub fn eq_by_name_ptr(&self, other: &Symbol) -> bool {
-    (&*self.name as *String) == (&*other.name as *String)
+    (&*self.name as *const String) == (&*other.name as *const String)
   }
 
   /// Returns a new Arc pointing at the string that this Symbol contains.

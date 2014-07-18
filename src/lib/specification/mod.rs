@@ -242,7 +242,7 @@ fn rule_routine<'a>(
       add_caller_locals_to(data.caller.get_ref(), &body);
 
       rules.push(Rule {
-        name:       data.name.get_ref().symbol_ref().unwrap().to_string(),
+        name:       (**data.name.get_ref().symbol_ref().unwrap()).clone(),
         body:       body,
         eventually: None,
         result:     None

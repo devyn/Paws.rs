@@ -88,8 +88,8 @@ fn end_queue_broadcast() {
   }
   queue.end();
 
-  task2.unwrap().unwrap();
-  task3.unwrap().unwrap();
+  task2.unwrap().ok().unwrap();
+  task3.unwrap().ok().unwrap();
 }
 
 #[test]
@@ -143,6 +143,6 @@ fn multi_worker_stall() {
     }
   });
 
-  task2.unwrap().unwrap();
-  task3.unwrap().unwrap();
+  task2.unwrap().ok().unwrap();
+  task3.unwrap().ok().unwrap();
 }
