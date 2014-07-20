@@ -1,0 +1,7 @@
+before_install:
+  - sudo add-apt-repository --yes ppa:hansjorg/rust
+  - sudo apt-get update -qq
+install:
+  - sudo apt-get install -qq rust-nightly
+script:
+  - make all test
