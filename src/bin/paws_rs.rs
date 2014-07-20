@@ -196,14 +196,18 @@ fn main() {
   }
 
   // Spawn reactors
-  let reactor_pool: Vec<Future<Result<(), Box<Any + Send>>>> =
-    range(0, reactors).map(|_|
-      Reactor::new(machine.clone()).spawn()
-    ).collect();
+  if reactors == 1 {
+    Reactor::new(machine).run()
+  } else {
+    let reactor_pool: Vec<Future<Result<(), Box<Any + Send>>>> =
+      range(0, reactors).map(|_|
+        Reactor::new(machine.clone()).spawn()
+      ).collect();
 
-  // Wait for reactors to finish
-  for task in reactor_pool.move_iter() {
-    task.unwrap().ok().unwrap();
+    // Wait for reactors to finish
+    for task in reactor_pool.move_iter() {
+      task.unwrap().ok().unwrap();
+    }
   }
 }
 
