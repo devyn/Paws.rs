@@ -24,8 +24,6 @@ use std::mem::replace;
 
 use std::sync::{Arc, Mutex};
 
-pub use util::work_queue::WorkGuard;
-
 pub use machine::reactor::Reactor;
 
 mod reactor;
@@ -44,9 +42,8 @@ pub struct Machine {
   /// the symbol map; not strictly necessary.
   pub locals_sym:     ObjectRef,
 
-  /// The receive-end of the main execution realization queue. Reactors pull
-  /// from this.
-      queue:          Arc<WorkQueue<Realization>>,
+  /// The main execution realization queue.
+      queue:          WorkQueue<Realization>,
 
   /// The system interface. See `paws::system`. Lazily generated, because many
   /// tests don't need it.
@@ -57,8 +54,13 @@ pub struct Machine {
 }
 
 impl Machine {
-  /// Creates a new Machine.
+  /// Creates a new Machine for a single reactor.
   pub fn new() -> Machine {
+    Machine::for_reactors(1)
+  }
+
+  /// Creates a new Machine for the specified number of reactors.
+  pub fn for_reactors(reactors: uint) -> Machine {
     let mut symbol_map = SymbolMap::new();
     let     locals_sym = ObjectRef::new_symbol(
                            box Symbol::new(symbol_map.intern("locals")));
@@ -67,7 +69,7 @@ impl Machine {
       symbol_map:     Arc::new(Mutex::new(symbol_map)),
       locals_sym:     locals_sym,
 
-      queue:          Arc::new(WorkQueue::new()),
+      queue:          WorkQueue::new(reactors),
 
       system:         Arc::new(Mutex::new(None)),
 
@@ -129,13 +131,9 @@ impl Machine {
   }
 
   /// Gets a realization from the machine's queue, blocking until either one is
-  /// available (in which case `Some(WorkGuard<Realization>)` is returned), or
-  /// the `Machine` has been `stop()`ped (in which case `None` is returned).
-  ///
-  /// It is important that the `WorkGuard` be kept around while work is being
-  /// done that was requested from the queue. This allows the Machine to detect
-  /// stalls and handle them appropriately.
-  pub fn dequeue<'a>(&'a self) -> Option<WorkGuard<'a, Realization>> {
+  /// available (in which case `Some(Realization)` is returned), or the
+  /// `Machine` has been `stop()`ped (in which case `None` is returned).
+  pub fn dequeue(&self) -> Option<Realization> {
     loop {
       match self.queue.shift() {
         Work(work) => return Some(work),
@@ -353,8 +351,8 @@ pub struct WorkItems<'a> {
   machine: &'a Machine
 }
 
-impl<'a> Iterator<WorkGuard<'a, Realization>> for WorkItems<'a> {
-  fn next(&mut self) -> Option<WorkGuard<'a, Realization>> {
+impl<'a> Iterator<Realization> for WorkItems<'a> {
+  fn next(&mut self) -> Option<Realization> {
     self.machine.dequeue()
   }
 }

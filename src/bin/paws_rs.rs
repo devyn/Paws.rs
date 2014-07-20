@@ -107,7 +107,7 @@ fn main() {
   }
 
   // Option: -R, --reactors COUNT
-  let mut reactors = 1;
+  let mut reactors: int = 1;
 
   match matches.opt_str("reactors") {
     Some(n) =>
@@ -175,7 +175,7 @@ fn main() {
   }
 
   // Set up machine as requested
-  let machine = Machine::new();
+  let machine = Machine::for_reactors(reactors as uint);
 
   if spec_ {
     // Parse and stage input (in spec mode)
@@ -183,15 +183,15 @@ fn main() {
       return
     }
   } else {
+    // Parse and stage input
+    if !eval(&machine, input.as_slice(), filename.as_slice()) {
+      return
+    }
+
     if no_stall {
       machine.on_stall(proc(machine) {
         machine.stop();
       });
-    }
-
-    // Parse and stage input
-    if !eval(&machine, input.as_slice(), filename.as_slice()) {
-      return
     }
   }
 

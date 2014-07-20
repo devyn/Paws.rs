@@ -191,7 +191,7 @@ fn alien_from_native_receiver() {
 
         match machine.dequeue() {
           Some(work) => {
-            let Realization(ref execution, ref response) = *work;
+            let Realization(ref execution, ref response) = work;
             assert!(execution == &caller);
             assert!(response  == &message);
           }

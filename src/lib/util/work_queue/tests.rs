@@ -6,7 +6,7 @@ use native::NativeTaskBuilder;
 
 #[test]
 fn consume_from_same_task() {
-  let queue = WorkQueue::<&'static str>::new();
+  let queue = WorkQueue::<&'static str>::new(1);
 
   let strings = ["a", "b", "c"];
 
@@ -16,7 +16,7 @@ fn consume_from_same_task() {
 
   for string in strings.iter() {
     match queue.shift() {
-      Work(string2) => assert!(*string2 == *string),
+      Work(string2) => assert!(string2 == *string),
       Stalled       => fail!("unexpected Stalled, expecting Work"),
       Ended         => fail!("unexpected Ended, expecting Work")
     }
@@ -25,7 +25,7 @@ fn consume_from_same_task() {
 
 #[test]
 fn consume_from_other_task() {
-  let queue  = Arc::new(WorkQueue::<&'static str>::new());
+  let queue  = WorkQueue::<&'static str>::new(1);
   let queue2 = queue.clone();
 
   let strings  = Arc::new(["a", "b", "c"]);
@@ -41,8 +41,8 @@ fn consume_from_other_task() {
     'stall: loop {
       match queue.shift() {
         Work(string2) => {
-          assert!(*string2 == *string,
-                  "\"{}\" != \"{}\"", *string2, *string);
+          assert!(string2 == *string,
+                  "\"{}\" != \"{}\"", string2, *string);
           break 'stall
         }
 
@@ -61,7 +61,7 @@ fn consume_from_other_task() {
 
 #[test]
 fn end_queue_broadcast() {
-  let queue   = Arc::new(WorkQueue::<uint>::new());
+  let queue   = WorkQueue::<uint>::new(2);
   let queue2  = queue.clone();
   let queue3  = queue.clone();
 
@@ -94,7 +94,7 @@ fn end_queue_broadcast() {
 
 #[test]
 fn single_worker_stall() {
-  let queue = WorkQueue::<uint>::new();
+  let queue = WorkQueue::<uint>::new(1);
 
   for n in range(0u, 100) {
     queue.push(n);
@@ -104,7 +104,7 @@ fn single_worker_stall() {
 
   loop {
     match queue.shift() {
-      Work(n) => max_n = *n,
+      Work(n) => max_n = n,
       Stalled => break,
       Ended   => fail!("unexpected Ended that shouldn't be possible.")
     }
@@ -115,7 +115,7 @@ fn single_worker_stall() {
 
 #[test]
 fn multi_worker_stall() {
-  let queue   = Arc::new(WorkQueue::<uint>::new());
+  let queue   = WorkQueue::<uint>::new(2);
   let queue2  = queue.clone();
   let queue3  = queue.clone();
 
