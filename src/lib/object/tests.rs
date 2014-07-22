@@ -3,6 +3,7 @@ use object::thing::Thing;
 use object::symbol::Symbol;
 
 use machine::*;
+use machine::reactor::MockReactor;
 
 use std::sync::Arc;
 
@@ -429,6 +430,7 @@ fn mixed_refs_eq_as_symbol_is_false() {
 
 struct LookupReceiverTestEnv {
   machine:     Machine,
+  reactor:     MockReactor,
 
   target_ref:  ObjectRef,
   caller_ref:  ObjectRef,
@@ -442,6 +444,7 @@ struct LookupReceiverTestEnv {
 
 fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let machine = Machine::new();
+  let reactor = MockReactor::new(machine.clone());
 
   let caller_ref  = ObjectRef::new(box Thing::new());
 
@@ -466,6 +469,7 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
 
   LookupReceiverTestEnv {
     machine:     machine,
+    reactor:     reactor,
 
     target_ref:  target_ref,
     caller_ref:  caller_ref,
@@ -482,19 +486,19 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
 fn lookup_receiver_hit_object_key() {
   let mut env = setup_lookup_receiver_test();
 
-  let reaction = lookup_receiver(&mut env.machine, Params {
+  lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
     message: env.obj_key_ref.clone()
   });
 
-  match reaction {
-    React(ref execution, ref response) => {
+  match env.reactor.stagings.as_slice() {
+    [(ref execution, ref response)] => {
       assert!(execution == &env.caller_ref);
       assert!(response  == &env.obj_val_ref);
     },
 
-    _ => fail!("unexpected reaction! expected React(...)")
+    _ => fail!("unexpected reaction!")
   }
 }
 
@@ -502,20 +506,20 @@ fn lookup_receiver_hit_object_key() {
 fn lookup_receiver_hit_symbol_key() {
   let mut env = setup_lookup_receiver_test();
 
-  let reaction = lookup_receiver(&mut env.machine, Params {
+  lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
     message: ObjectRef::new_symbol(box
                Symbol::new(env.sym_key_sym.clone()))
   });
 
-  match reaction {
-    React(ref execution, ref response) => {
+  match env.reactor.stagings.as_slice() {
+    [(ref execution, ref response)] => {
       assert!(execution == &env.caller_ref);
       assert!(response  == &env.sym_val_ref);
     },
 
-    _ => fail!("unexpected reaction! expected React(...)")
+    _ => fail!("unexpected reaction!")
   }
 }
 
@@ -523,17 +527,13 @@ fn lookup_receiver_hit_symbol_key() {
 fn lookup_receiver_miss_object_key() {
   let mut env = setup_lookup_receiver_test();
 
-  let reaction = lookup_receiver(&mut env.machine, Params {
+  lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
     message: ObjectRef::new(box Thing::new())
   });
 
-  match reaction {
-    Yield => (),
-
-    _ => fail!("unexpected reaction! expected Yield")
-  }
+  assert!(env.reactor.stagings.is_empty());
 }
 
 #[test]
@@ -542,15 +542,11 @@ fn lookup_receiver_miss_symbol_key() {
 
   let bar_sym_ref = env.machine.symbol("bar");
 
-  let reaction = lookup_receiver(&mut env.machine, Params {
+  lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
     message: bar_sym_ref
   });
 
-  match reaction {
-    Yield => (),
-
-    _ => fail!("unexpected reaction! expected Yield")
-  }
+  assert!(env.reactor.stagings.is_empty());
 }

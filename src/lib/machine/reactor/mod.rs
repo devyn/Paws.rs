@@ -19,6 +19,9 @@ use std::collections::{Deque, RingBuf};
 use std::mem::replace;
 use std::sync::Semaphore;
 
+#[cfg(test)]
+mod tests;
+
 /// A single Paws reactor.
 ///
 /// Responsible for a single Machine's Unit. In the future, Machines will be

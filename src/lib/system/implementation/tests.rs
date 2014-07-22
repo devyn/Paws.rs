@@ -10,7 +10,7 @@ use machine::reactor::MockReactor;
 #[test]
 fn void_accepts_forever() {
   let     machine = Machine::new();
-  let mut reactor = MockReactor::new();
+  let mut reactor = MockReactor::new(machine.clone());
 
   let void   = ObjectRef::new(box implementation::void(&machine));
   let caller = ObjectRef::new(box Thing::new());
@@ -51,11 +51,11 @@ fn void_accepts_forever() {
 #[test]
 fn stop_stops() {
   let     machine = Machine::new();
-  let mut reactor = MockReactor::new();
+  let mut reactor = MockReactor::new(machine.clone());
 
   let caller = ObjectRef::new(box Thing::new());
 
-  let reaction = implementation::stop(&mut reactor, caller, &[]);
+  let reaction = implementation::stop(&mut reactor, caller);
 
   assert!(reactor.stagings.is_empty());
   assert!(reactor.alive == false);
