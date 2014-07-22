@@ -27,7 +27,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
 
     add.namespace(    "console",                 console::make                );
     add.factory(      "void",                    void                         );
-    add.call_pattern( "stop",                    stop, 0                      );
+    add.oneshot(      "stop",                    stop                         );
     add.call_pattern( "branch",                  branch, 1                    );
   }
 
@@ -82,17 +82,13 @@ pub fn void(_machine: &Machine) -> Alien {
   Alien::new(void_routine, box VoidCaller(None))
 }
 
-/// Halts the machine by terminating its queue.
-///
-/// # Call pattern arguments
-///
-/// No arguments.
+/// Halts the machine by terminating its queue. The response is ignored.
 ///
 /// # Example
 ///
 ///     implementation stop[]
-pub fn stop(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
-  unimplemented!()
+pub fn stop(reactor: &mut Reactor, _response: ObjectRef) {
+  reactor.stop()
 }
 
 /// Clones an Execution. If the Execution is the caller, both the caller and the
