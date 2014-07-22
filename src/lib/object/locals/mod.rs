@@ -1,7 +1,7 @@
 //! Locals make up the in-`Execution` data storage objects.
 
 use object::*;
-use machine::Machine;
+use machine::Reactor;
 
 use std::io::IoResult;
 
@@ -44,8 +44,7 @@ impl Object for Locals {
 /// Returns the `subject` if the `message` is the `subject`'s name.
 ///
 /// Otherwise, compares pair-wise, like `lookup_receiver`.
-#[allow(unused_variable)]
-pub fn locals_receiver(machine: &Machine, params: Params) -> Reaction {
+pub fn locals_receiver(reactor: &mut Reactor, params: Params) {
   let lookup_result = {
     match params.subject.lock().try_cast::<Locals>() {
       Ok(subject) =>
@@ -64,8 +63,8 @@ pub fn locals_receiver(machine: &Machine, params: Params) -> Reaction {
 
   match lookup_result {
     Some(value) =>
-      React(params.caller.clone(), value),
+      reactor.stage(params.caller.clone(), value),
     None =>
-      Yield
+      return
   }
 }

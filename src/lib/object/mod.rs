@@ -6,7 +6,7 @@ use std::io::IoResult;
 use std::fmt::Show;
 use std::fmt;
 
-use machine::Machine;
+use machine::reactor::Reactor;
 
 pub use object::members::Members;
 
@@ -81,8 +81,7 @@ impl<'a> AnyMutRefExt<'a> for &'a mut Object {
 ///
 /// This receiver is the default receiver for all Object types, unless
 /// overridden.
-#[allow(unused_variable)]
-pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
+pub fn lookup_receiver(reactor: &mut Reactor, params: Params) {
   let lookup_result = {
     let subject = params.subject.lock();
 
@@ -94,9 +93,9 @@ pub fn lookup_receiver(machine: &Machine, params: Params) -> Reaction {
 
   match lookup_result {
     Some(value) =>
-      React(params.caller.clone(), value),
+      reactor.stage(params.caller.clone(), value),
     None =>
-      Yield
+      return
   }
 }
 
@@ -447,7 +446,7 @@ impl Meta {
 
   /// Constructs a `Meta` exactly like `new()` does but with a given function to
   /// set as the receiver (`NativeReceiver`).
-  pub fn with_receiver(receiver: fn (&Machine, Params) -> Reaction) -> Meta {
+  pub fn with_receiver(receiver: fn (&mut Reactor, Params)) -> Meta {
     let mut meta = Meta::new();
 
     meta.receiver = NativeReceiver(receiver);
@@ -462,9 +461,9 @@ pub enum Receiver {
   /// recursively until a queueable or native receiver is found.
   ObjectReceiver(ObjectRef),
 
-  /// Call this function immediately to get the appropriate `Reaction` to the
-  /// combination, with the given `Machine` and `Params`.
-  NativeReceiver(fn (&Machine, Params) -> Reaction)
+  /// Call this function immediately to perform the combination, with the given
+  /// `Reactor` and `Params`.
+  NativeReceiver(fn (&mut Reactor, Params))
 }
 
 impl Clone for Receiver {
@@ -496,22 +495,4 @@ pub struct Params {
   /// The right-hand side of the combination that caused this receiver to be
   /// invoked.
   pub message: ObjectRef
-}
-
-/// Indicates the result of a native operation exposed to the Paws-world, which
-/// may either be an immediate realization (`React`) or delayed/non-existent
-/// (`Yield`).
-#[deriving(Clone, Eq, PartialEq, Show)]
-pub enum Reaction {
-  /// Indicates that the reactor should realize the given execution and response
-  /// immediately.
-  ///
-  /// 1. is the Execution-ish to realize (quite often the caller)
-  /// 2. is the response to realize with
-  React(ObjectRef, ObjectRef),
-
-  /// Indicates that there is nothing that should be reacted immediately as a
-  /// result of the receiver, so the reactor should wait on the Machine's queue
-  /// instead.
-  Yield
 }

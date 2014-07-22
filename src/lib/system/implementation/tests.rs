@@ -5,55 +5,58 @@ use object::thing::Thing;
 use object::alien::Alien;
 
 use machine::*;
+use machine::reactor::MockReactor;
 
 #[test]
 fn void_accepts_forever() {
-  let machine = Machine::new();
+  let     machine = Machine::new();
+  let mut reactor = MockReactor::new();
 
   let void   = ObjectRef::new(box implementation::void(&machine));
   let caller = ObjectRef::new(box Thing::new());
   let obj    = ObjectRef::new(box Thing::new());
 
-  let reaction = Alien::realize(
+  Alien::realize(
     void.lock().try_cast::<Alien>().ok().unwrap(),
-    &machine,
+    &mut reactor,
     caller.clone()
   );
 
-  match reaction {
-    React(execution, response) => {
+  match reactor.stagings.shift() {
+    Some((execution, response)) => {
       assert!(execution == caller);
       assert!(response  == void);
     },
-    _ => fail!("expected React(..)")
+    None => fail!("stage() wasn't called")
   }
 
   // 100 oughtta be enough to prove 'forever', eh?
   for _ in range(0u, 100) {
     let reaction = Alien::realize(
       void.lock().try_cast::<Alien>().ok().unwrap(),
-      &machine,
+      &mut reactor,
       obj.clone()
     );
 
-    match reaction {
-      React(execution, response) => {
+    match reactor.stagings.shift() {
+      Some((execution, response)) => {
         assert!(execution == caller);
         assert!(response  == void);
       },
-      _ => fail!("expected React(..)")
+      None => fail!("stage() wasn't called")
     }
   }
 }
 
 #[test]
 fn stop_stops() {
-  let machine = Machine::new();
+  let     machine = Machine::new();
+  let mut reactor = MockReactor::new();
 
   let caller = ObjectRef::new(box Thing::new());
 
-  let reaction = implementation::stop(&machine, caller, &[]);
+  let reaction = implementation::stop(&mut reactor, caller, &[]);
 
-  assert!(reaction == Yield);
-  assert!(machine.dequeue().is_none());
+  assert!(reactor.stagings.is_empty());
+  assert!(reactor.alive == false);
 }

@@ -15,7 +15,7 @@ use std::sync::Arc;
 
 use script::*;
 use object::*;
-use machine::{Machine, Combination};
+use machine::reactor::{Reactor, Combination};
 
 use util::clone;
 
@@ -148,16 +148,13 @@ impl Object for Execution {
 
 /// A receiver that first ensures the subject is queueable, clones it, and then
 /// enqueues the clone with the message.
-#[allow(unused_variable)]
-pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
-  match clone::queueable(&params.subject, machine) {
+pub fn stage_receiver(reactor: &mut Reactor, params: Params) {
+  match clone::queueable(&params.subject, reactor.machine()) {
     Some(clone) => {
       debug!("stage_receiver: {} cloned to {} <-- {}",
              params.subject, clone, params.message);
 
-      // React() would be unsafe; there may be other things depending on the
-      // order
-      machine.enqueue(clone, params.message.clone());
+      reactor.stage(clone, params.message.clone());
     },
 
     None =>
@@ -165,6 +162,4 @@ pub fn stage_receiver(machine: &Machine, params: Params) -> Reaction {
                     " execution nor an alien"),
             params.subject, params.message)
   }
-
-  Yield
 }

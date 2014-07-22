@@ -49,15 +49,14 @@ pub fn make(machine: &Machine) -> ObjectRef {
 /// # Example
 ///
 ///     implementation void[] a b c [foo] [bar baz]
-pub fn void(machine: &Machine) -> Alien {
+pub fn void(_machine: &Machine) -> Alien {
   #[deriving(Clone)]
   struct VoidCaller(Option<ObjectRef>);
 
   fn void_routine<'a>(
                   mut alien: TypedRefGuard<'a, Alien>,
-                  machine:   &Machine,
-                  response:  ObjectRef)
-                  -> Reaction {
+                  reactor:   &mut Reactor,
+                  response:  ObjectRef) {
 
     let caller: ObjectRef;
 
@@ -77,7 +76,7 @@ pub fn void(machine: &Machine) -> Alien {
         fail!("void_routine called on a non-void() Alien!")
     }
 
-    React(caller, alien.unlock().clone())
+    reactor.stage(caller, alien.unlock().clone())
   }
 
   Alien::new(void_routine, box VoidCaller(None))
@@ -92,10 +91,8 @@ pub fn void(machine: &Machine) -> Alien {
 /// # Example
 ///
 ///     implementation stop[]
-pub fn stop(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-            -> Reaction {
-  machine.stop();
-  Yield
+pub fn stop(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
+  unimplemented!()
 }
 
 /// Clones an Execution. If the Execution is the caller, both the caller and the
@@ -108,11 +105,10 @@ pub fn stop(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 /// # Example
 ///
 ///     implementation branch[] []
-pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-              -> Reaction {
+pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref executionish] => {
-      let clone = match clone::queueable(executionish, machine) {
+      let clone = match clone::queueable(executionish, reactor.machine()) {
 
         Some(clone) => clone,
 
@@ -121,7 +117,7 @@ pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
                         " an execution nor an alien"),
                 executionish);
 
-          return Yield
+          return
         }
       };
 
@@ -132,14 +128,12 @@ pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
 
         // If we are branching the caller, react both the clone and the caller
         // with each other -- this ensures both proceed.
-        machine.enqueue(caller.clone(), clone.clone());
-
-        // Give priority to the clone.
-        React(clone, caller)
+        reactor.stage(clone.clone(), caller.clone());
+        reactor.stage(caller, clone);
       } else {
         debug!("branching {} (original) => {} (clone)", executionish, clone);
 
-        React(caller, clone)
+        reactor.stage(caller, clone)
       }
     },
     _ => fail!("wrong number of arguments")

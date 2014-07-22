@@ -2,7 +2,7 @@
 
 use object::*;
 use object::execution::stage_receiver;
-use machine::Machine;
+use machine::Reactor;
 
 use std::any::*;
 use std::io::IoResult;
@@ -79,28 +79,27 @@ impl Alien {
   /// 2. Caller.
   /// 3. Subject.
   /// 4. Message.
-  pub fn from_native_receiver(receiver: fn (&Machine, Params) -> Reaction)
+  pub fn from_native_receiver(receiver: fn (&mut Reactor, Params))
                               -> Alien {
 
     Alien::new(native_receiver_alien_routine,
                box NativeReceiverData(receiver))
   }
 
-  /// Calls the Alien's routine with the given `machine` and `response`.
+  /// Calls the Alien's routine with the given `reactor` and `response`.
   ///
   /// # Example
   ///
   ///     match alien_ref.lock().try_cast::<Alien>() {
-  ///       Ok(alien) => Alien::realize(alien, &machine, response),
+  ///       Ok(alien) => Alien::realize(alien, &reactor, response),
   ///       Err(_)    => fail!("not an alien!")
   ///     }
-  pub fn realize<'a>(
+  pub fn realize<'a, R: Reactor>(
                  alien:    TypedRefGuard<'a, Alien>,
-                 machine:  &Machine,
-                 response: ObjectRef)
-                 -> Reaction {
+                 reactor:  &mut R,
+                 response: ObjectRef) {
 
-    (alien.routine)(alien, machine, response)
+    (alien.routine)(alien, reactor, response)
   }
 }
 
@@ -176,9 +175,8 @@ impl<'a> AnyMutRefExt<'a> for &'a mut Data {
 /// A function that implements the logic behind an Alien.
 pub type Routine = fn <'a>(
                        alien:    TypedRefGuard<'a, Alien>,
-                       machine:  &Machine,
-                       response: ObjectRef)
-                       -> Reaction;
+                       reactor:  &mut Reactor,
+                       response: ObjectRef);
 
 /// A function that implements a "call-pattern" style Alien.
 ///
@@ -202,14 +200,13 @@ pub type Routine = fn <'a>(
 ///     alien <- hello ... {args   push(hello)} ... caller <- alien
 ///     alien <- world ... {args   push(world)} ...
 ///
-///       call_pattern_routine(machine, caller = [], args = [hello, world])
-///         -> React(caller, hi) ...
+///       call_pattern_routine(reactor, caller = [], args = [hello, world])
+///         -> reactor.stage(caller, hi) ...
 ///
 ///     caller <- hi
-pub type CallPatternRoutine = fn (machine: &Machine,
+pub type CallPatternRoutine = fn (reactor: &mut Reactor,
                                   caller:  ObjectRef,
-                                  args:    &[ObjectRef])
-                                  -> Reaction;
+                                  args:    &[ObjectRef]);
 
 /// Internal state for call pattern wrapper.
 struct CallPatternData {
@@ -235,16 +232,15 @@ impl Clone for CallPatternData {
 /// Function that performs call pattern wrapper.
 fn call_pattern_alien_routine<'a>(
                               mut alien: TypedRefGuard<'a, Alien>,
-                              machine:   &Machine,
-                              response:  ObjectRef)
-                              -> Reaction {
+                              reactor:   &mut Reactor,
+                              response:  ObjectRef) {
 
   let (caller, routine, args) = {
     // Do everything we need to do to data in here, so we can drop alien.
     let data = alien.data.as_mut::<CallPatternData>().unwrap();
 
     // Don't do anything if we're complete.
-    if data.complete { return Yield }
+    if data.complete { return }
 
     match data.caller {
       Some(_) => {
@@ -278,11 +274,11 @@ fn call_pattern_alien_routine<'a>(
     Some(args) => {
       // We have args, so we must be done.
       drop(alien);
-      routine(machine, caller, args.as_slice())
+      routine(reactor, caller, args.as_slice())
     },
     None =>
       // Need more args!
-      React(caller, alien.unlock().clone())
+      reactor.stage(caller, alien.unlock().clone())
   }
 }
 
@@ -291,9 +287,8 @@ fn call_pattern_alien_routine<'a>(
 /// This type of alien only ever accepts one argument, after which it is
 /// considered to have 'completed' and the routine will never be called again;
 /// any further realizations of the Alien result in no response.
-pub type OneshotRoutine = fn (machine:  &Machine,
-                              response: ObjectRef)
-                              -> Reaction;
+pub type OneshotRoutine = fn (reactor:  &mut Reactor,
+                              response: ObjectRef);
 
 /// Internal state for oneshot wrapper.
 struct OneshotData {
@@ -313,15 +308,14 @@ impl Clone for OneshotData {
 /// Function that performs oneshot wrapper.
 fn oneshot_alien_routine<'a>(
                           mut alien: TypedRefGuard<'a, Alien>,
-                          machine:   &Machine,
-                          response:  ObjectRef)
-                          -> Reaction {
+                          reactor:   &mut Reactor,
+                          response:  ObjectRef) {
 
   let routine = {
     let data = alien.data.as_mut::<OneshotData>().unwrap();
 
     if data.complete {
-      return Yield;
+      return;
     } else {
       data.complete = true;
     }
@@ -331,11 +325,11 @@ fn oneshot_alien_routine<'a>(
 
   drop(alien);
 
-  routine(machine, response)
+  routine(reactor, response)
 }
 
 /// Internal state for native receiver wrapper.
-struct NativeReceiverData(fn (&Machine, Params) -> Reaction);
+struct NativeReceiverData(fn (&mut Reactor, Params));
 
 impl Clone for NativeReceiverData {
   fn clone(&self) -> NativeReceiverData {
@@ -347,9 +341,8 @@ impl Clone for NativeReceiverData {
 /// Function that performs native receiver wrapper.
 fn native_receiver_alien_routine<'a>(
                                  mut alien: TypedRefGuard<'a, Alien>,
-                                 machine:   &Machine,
-                                 response:  ObjectRef)
-                                 -> Reaction {
+                                 reactor:   &mut Reactor,
+                                 response:  ObjectRef) {
 
   let NativeReceiverData(receiver) =
     *alien.data.as_mut::<NativeReceiverData>().unwrap();
@@ -369,15 +362,15 @@ fn native_receiver_alien_routine<'a>(
         },
 
       _ => {
-        // Malformed. Warn and yield.
+        // Malformed. Warn and unstage.
         warn!(concat!("native_receiver_alien_routine received",
                       " malformed params object {}"),
               response);
 
-        return Yield
+        return
       }
     }
   };
 
-  receiver(machine, params)
+  receiver(reactor, params)
 }

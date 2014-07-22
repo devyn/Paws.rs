@@ -48,29 +48,29 @@ impl Suite {
   /// Start running the Suite with all of the known rules up to this point.
   ///
   /// Stops the Machine once the Suite has completed.
-  pub fn run(&self, machine: &Machine) {
+  pub fn run(&self, reactor: &mut Reactor) {
     let rules = self.rules.lock();
 
     println!("1..{}", rules.deref().len());
 
     for (index, rule) in rules.deref().iter().enumerate() {
-      rule.start(self, machine, index);
+      rule.start(self, reactor, index);
     }
 
     let suite = self.clone();
-    machine.on_stall(proc(machine) {
+    reactor.on_stall(proc(reactor) {
       for rule in suite.rules.lock().iter() {
         if rule.result.is_none() {
           match rule.eventually.clone() {
             Some(eventually) =>
-              machine.enqueue(eventually.clone(), eventually),
+              reactor.stage(eventually.clone(), eventually),
             None => ()
           }
         }
       }
 
-      machine.on_stall(proc(machine) {
-        machine.stop();
+      reactor.on_stall(proc(reactor) {
+        reactor.stop();
       });
     });
   }
@@ -101,7 +101,7 @@ struct Rule {
 }
 
 impl Rule {
-  fn start(&self, suite: &Suite, machine: &Machine, index: uint) {
+  fn start(&self, suite: &Suite, reactor: &mut Reactor, index: uint) {
     let pass = ObjectRef::new(box
       Alien::new(set_rule_result_routine,
                  box SetRuleResultAlienData {
@@ -120,6 +120,8 @@ impl Rule {
 
     // Add pass and fail to locals of `body`
     {
+      let machine = reactor.machine();
+
       let body_locals =
         self.body.lock().meta_mut().members
           .lookup_pair(&machine.locals_sym)
@@ -134,13 +136,15 @@ impl Rule {
     }
 
     // Stage `body`
-    machine.enqueue(self.body.clone(), self.body.clone());
+    reactor.stage(self.body.clone(), self.body.clone());
 
     // Handle `eventually`
     match self.eventually {
       Some(ref eventually) => {
         // Add pass and fail to locals of `eventually`
         {
+          let machine = reactor.machine();
+
           let eventually_locals =
             eventually.lock().meta_mut().members
               .lookup_pair(&machine.locals_sym)
@@ -191,9 +195,8 @@ struct RuleAlienData {
 
 fn rule_routine<'a>(
                 mut alien: TypedRefGuard<'a, Alien>,
-                machine:   &Machine,
-                response:  ObjectRef)
-                -> Reaction {
+                reactor:   &mut Reactor,
+                response:  ObjectRef) {
 
   let caller;
   {
@@ -203,7 +206,7 @@ fn rule_routine<'a>(
       let caller_locals_members = {
         let caller_locals =
           caller.lock().meta().members
-            .lookup_pair(&machine.locals_sym)
+            .lookup_pair(&reactor.machine().locals_sym)
             .expect("Execution is missing locals!");
 
         caller_locals.lock().meta().members.clone()
@@ -211,7 +214,7 @@ fn rule_routine<'a>(
 
       let dest_locals =
         dest.lock().meta().members
-          .lookup_pair(&machine.locals_sym)
+          .lookup_pair(&reactor.machine().locals_sym)
           .expect("Execution is missing locals!"); // FIXME: omfg, DRY this
 
       let mut dest_locals = dest_locals.lock();
@@ -220,7 +223,8 @@ fn rule_routine<'a>(
     };
 
     if data.completed {
-      return Yield
+      // Do nothing
+      return
 
     } else if data.caller.is_none() {
       data.caller = Some(response);
@@ -228,7 +232,7 @@ fn rule_routine<'a>(
     } else if data.name.is_none() {
       if response.symbol_ref().is_none() {
         warn!("expected name: {} to be a Symbol", response);
-        return Yield
+        return
       }
 
       data.name = Some(response);
@@ -257,7 +261,7 @@ fn rule_routine<'a>(
 
         _ => {
           warn!("expected 'eventually'");
-          return Yield
+          return
         }
       }
     } else {
@@ -273,7 +277,7 @@ fn rule_routine<'a>(
     caller = data.caller.get_ref().clone();
   }
 
-  React(caller, alien.unlock().clone())
+  reactor.stage(caller, alien.unlock().clone())
 }
 
 #[deriving(Clone)]
@@ -285,15 +289,12 @@ struct SetRuleResultAlienData {
 
 fn set_rule_result_routine<'a>(
                             mut alien: TypedRefGuard<'a, Alien>,
-                            _machine:  &Machine,
-                            _response: ObjectRef)
-                            -> Reaction {
+                            _reactor:  &mut Reactor,
+                            _response: ObjectRef) {
 
   let data = alien.data.as_mut::<SetRuleResultAlienData>().unwrap();
 
   let mut rules = data.suite.rules.lock();
 
   rules.get_mut(data.rule).set_result(data.rule, data.to.clone());
-
-  Yield
 }

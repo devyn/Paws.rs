@@ -6,20 +6,20 @@ use std::io;
 use std::os;
 use std::fmt;
 
-use std::any::Any;
-
 use std::io::fs::File;
 use std::path::Path;
-
-use std::sync::Future;
 
 use getopts::{optopt, optflag, optflagmulti, getopts};
 use getopts::{ArgumentMissing, UnrecognizedOption, OptionMissing};
 use getopts::{OptionDuplicated, UnexpectedArgument};
 
 use paws::cpaws;
-use paws::machine::{Machine, Reactor};
+
+use paws::machine::Machine;
+use paws::machine::reactor::{Reactor, SerialReactor};
+
 use paws::object::execution::Execution;
+
 use paws::specification::Suite;
 
 #[start]
@@ -175,39 +175,40 @@ fn main() {
   }
 
   // Set up machine as requested
-  let machine = Machine::for_reactors(reactors as uint);
+  let machine = Machine::new();
 
-  if spec_ {
-    // Parse and stage input (in spec mode)
-    if !spec(&machine, input.as_slice(), filename.as_slice()) {
-      return
-    }
-  } else {
-    // Parse and stage input
-    if !eval(&machine, input.as_slice(), filename.as_slice()) {
-      return
-    }
+  let start = proc (reactor: &mut Reactor) {
+    if spec_ {
+      // Parse and stage input (in spec mode)
+      spec(reactor, input.as_slice(), filename.as_slice())
+    } else {
+      // Parse and stage input
+      if !eval(reactor, input.as_slice(), filename.as_slice()) {
+        return false
+      }
 
-    if no_stall {
-      machine.on_stall(proc(machine) {
-        machine.stop();
-      });
+      if no_stall {
+        reactor.on_stall(proc(reactor) {
+          reactor.stop();
+        });
+      }
+
+      true
     }
-  }
+  };
 
   // Spawn reactors
   if reactors == 1 {
-    Reactor::new(machine).run()
-  } else {
-    let reactor_pool: Vec<Future<Result<(), Box<Any + Send>>>> =
-      range(0, reactors).map(|_|
-        Reactor::new(machine.clone()).spawn()
-      ).collect();
+    let mut reactor = SerialReactor::new(machine);
 
-    // Wait for reactors to finish
-    for task in reactor_pool.move_iter() {
-      task.unwrap().ok().unwrap();
-    }
+    if !start(&mut reactor) { return }
+
+    reactor.run()
+  } else {
+    // FIXME
+    format_args!(generic_error,
+                 concat!("Error: parallelism is currently broken. Use",
+                         " `--reactors 1`.\n"))
   }
 }
 
@@ -262,20 +263,21 @@ fn argument_error(args: &fmt::Arguments) {
   os::set_exit_status(1);
 }
 
-fn eval(machine: &Machine, input: &str, filename: &str) -> bool {
+fn eval(reactor: &mut Reactor, input: &str, filename: &str) -> bool {
   match cpaws::parse_nodes(input.as_slice(), filename) {
     Ok(nodes) => {
       // Compile an execution...
-      let script        = cpaws::build_script(machine, nodes.as_slice());
-      let execution_ref = machine.execution(script);
+      let script        = cpaws::build_script(reactor.machine(),
+                                              nodes.as_slice());
+      let execution_ref = reactor.machine().execution(script);
 
       // ...expose the system interface to it...
-      machine.expose_system_to(
+      reactor.machine().expose_system_to(
         &mut *execution_ref.lock().try_cast::<Execution>()
                                   .ok().unwrap());
 
       // and stage!
-      machine.enqueue(execution_ref.clone(), execution_ref.clone());
+      reactor.stage(execution_ref.clone(), execution_ref.clone());
 
       true
     }
@@ -287,31 +289,32 @@ fn eval(machine: &Machine, input: &str, filename: &str) -> bool {
   }
 }
 
-fn spec(machine: &Machine, input: &str, filename: &str) -> bool {
+fn spec(reactor: &mut Reactor, input: &str, filename: &str) -> bool {
   match cpaws::parse_nodes(input.as_slice(), filename) {
     Ok(nodes) => {
       let suite = Suite::new();
 
       // Compile an execution...
-      let script        = cpaws::build_script(machine, nodes.as_slice());
-      let execution_ref = machine.execution(script);
+      let script        = cpaws::build_script(reactor.machine(),
+                                              nodes.as_slice());
+      let execution_ref = reactor.machine().execution(script);
 
       // ...expose the system interface to it...
-      machine.expose_system_to(
+      reactor.machine().expose_system_to(
         &mut *execution_ref.lock().try_cast::<Execution>()
                                   .ok().unwrap());
 
       // ...expose the specification interface to it...
       suite.expose_to(&mut *execution_ref.lock().try_cast::<Execution>()
                               .ok().unwrap(),
-                      machine);
+                      reactor.machine());
 
       // and stage!
-      machine.enqueue(execution_ref.clone(), execution_ref.clone());
+      reactor.stage(execution_ref.clone(), execution_ref.clone());
 
       // Then, run the suite once that stalls.
-      machine.on_stall(proc(machine) {
-        suite.run(machine);
+      reactor.on_stall(proc (reactor) {
+        suite.run(reactor);
       });
 
       true

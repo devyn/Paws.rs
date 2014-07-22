@@ -27,45 +27,33 @@ pub fn make(machine: &Machine) -> ObjectRef {
   ObjectRef::new_with_tag(execution, "(infra. execution)")
 }
 
-pub fn branch(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-              -> Reaction {
+pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
-    [ref executionish] => {
-      let clone = match clone::queueable(executionish, machine) {
+    [ref executionish] =>
+      match clone::queueable(executionish, reactor.machine()) {
 
-        Some(clone) => clone,
+        Some(clone) => reactor.stage(caller, clone),
 
-        None => {
+        None =>
           warn!(concat!("tried to branch {}, which is neither",
                         " an execution nor an alien"),
-                executionish);
-
-          return Yield
-        }
-      };
-
-      React(caller, clone)
-    },
+                executionish)
+      },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn stage(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn stage(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref execution, ref response] => {
-      // Put the caller on the queue so that...
-      machine.enqueue(caller, execution.clone());
-
-      // the execution gets priority by being the immediate result.
-      React(execution.clone(), response.clone())
+      reactor.stage(execution.clone(), response.clone());
+      reactor.stage(caller, execution.clone());
     },
     _ =>
       fail!("wrong number of arguments")
   }
 }
 
-pub fn unstage(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
-  Yield
+pub fn unstage(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
+  // Do nothing! :D
 }

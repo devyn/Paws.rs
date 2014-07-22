@@ -25,40 +25,35 @@ pub fn make(machine: &Machine) -> ObjectRef {
   ObjectRef::new_with_tag(label, "(infra. label)")
 }
 
-pub fn clone(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn clone(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref original] =>
       match original.lock().try_cast::<Symbol>() {
         Ok(symbol) =>
-          React(caller, ObjectRef::new_symbol(box symbol.deref().clone())),
+          reactor.stage(caller, ObjectRef::new_symbol(
+                                  box symbol.deref().clone())),
 
-        Err(_) => {
+        Err(_) =>
           warn!("tried to label clone[] {}, which is not a Symbol",
-            original);
-
-          Yield
-        }
+            original)
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn compare(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
+pub fn compare(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref a, ref b] =>
       if a.eq_as_symbol(b) {
-        React(caller, a.clone())
+        reactor.stage(caller, a.clone())
       } else {
-        Yield
+        return
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn explode(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
+pub fn explode(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref symbol] =>
       match symbol.symbol_ref() {
@@ -68,18 +63,17 @@ pub fn explode(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
           let str_slice = string.as_slice();
 
           for (index, _) in str_slice.char_indices() {
-            meta.members.push(
-              machine.symbol(str_slice.slice_from(index).slice_chars(0, 1)));
+            let char_str =
+              str_slice.slice_from(index).slice_chars(0, 1);
+
+            meta.members.push(reactor.machine().symbol(char_str));
           }
 
-          React(caller, ObjectRef::new(box Thing::from_meta(meta)))
+          reactor.stage(caller, ObjectRef::new(box Thing::from_meta(meta)))
         },
-        None => {
+        None =>
           warn!("tried to label explode[] {}, which is not a Symbol",
-            symbol);
-
-          Yield
-        }
+            symbol)
       },
     _ => fail!("wrong number of arguments")
   }

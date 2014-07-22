@@ -58,206 +58,186 @@ pub fn make(machine: &Machine) -> ObjectRef {
   ObjectRef::new_with_tag(infrastructure, "(infrastructure)")
 }
 
-pub fn empty(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn empty(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 
-  React(caller, ObjectRef::new(box Thing::new()))
+  reactor.stage(caller, ObjectRef::new(box Thing::new()));
 }
 
-pub fn get(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-           -> Reaction {
+pub fn get(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from, ref index] => {
       let index = match unsignedish(index) {
         Some(index) => index,
-        None        => return Yield
+        None        => return 
       };
 
       match from.lock().meta().members.get(index) {
-        Some(relationship) => React(caller, relationship.to().clone()),
-        None               => Yield
+        Some(relationship) => reactor.stage(caller, relationship.to().clone()),
+        None               => return
       }
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn set(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-           -> Reaction {
+pub fn set(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref on, ref index, ref what] => {
       let index = match unsignedish(index) {
         Some(index) => index,
-        None        => return Yield
+        None        => return
       };
 
       on.lock().meta_mut().members.set(index, what.clone());
-      Yield
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn cut(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-           -> Reaction {
+pub fn cut(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from, ref index] => {
       let index = match unsignedish(index) {
         Some(index) => index,
-        None        => return Yield
+        None        => return
       };
 
       match from.lock().meta_mut().members.delete(index) {
-        Some(relationship) => React(caller, relationship.to().clone()),
-        None               => Yield
+        Some(relationship) => reactor.stage(caller, relationship.to().clone()),
+        None               => return
       }
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn affix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn affix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
-    [ref onto, ref what] => {
-      onto.lock().meta_mut().members.push(what.clone());
-      Yield
-    },
+    [ref onto, ref what] =>
+      onto.lock().meta_mut().members.push(what.clone()),
+
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn unaffix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
+pub fn unaffix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from] =>
       match from.lock().meta_mut().members.pop() {
-        Some(relationship) => React(caller, relationship.unwrap()),
-        None               => Yield
+        Some(relationship) => reactor.stage(caller, relationship.unwrap()),
+        None               => return
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn prefix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-              -> Reaction {
+pub fn prefix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
-    [ref onto, ref what] => {
-      onto.lock().meta_mut().members.unshift(what.clone());
-      Yield
-    },
+    [ref onto, ref what] =>
+      onto.lock().meta_mut().members.unshift(what.clone()),
+
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn unprefix(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-                -> Reaction {
+pub fn unprefix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from] =>
       match from.lock().meta_mut().members.shift() {
-        Some(relationship) => React(caller, relationship.unwrap()),
-        None               => Yield
+        Some(relationship) => reactor.stage(caller, relationship.unwrap()),
+        None               => return
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn length(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-              -> Reaction {
+pub fn length(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref of] => {
-      let length = of.lock().meta().members.len() as int;
-
       // We subtract 1 from the length because the noughty (#0) is not counted;
       // this is the length of the "data"-members.
-      React(caller, machine.symbol((length - 1).to_string().as_slice()))
+      let length = of.lock().meta().members.len() as int - 1;
+
+      let length_sym =
+        reactor.machine().symbol(length.to_string().as_slice());
+
+      reactor.stage(caller, length_sym);
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn find(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-            -> Reaction {
+pub fn find(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref within, ref key] =>
       match within.lock().meta().members.lookup_pair(key) {
-        Some(value) => React(caller, value),
-        None        => Yield
+        Some(value) => reactor.stage(caller, value),
+        None        => return
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn compare(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
+pub fn compare(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref a, ref b] =>
       if a == b {
-        React(caller, a.clone())
+        reactor.stage(caller, a.clone())
       } else {
-        Yield
+        return
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn clone(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn clone(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref original] =>
-      React(caller, ObjectRef::new(box clone::to_thing(original))),
+      reactor.stage(caller, ObjectRef::new(box clone::to_thing(original))),
 
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn adopt(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn adopt(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from, ref onto] => {
       let members = from.lock().meta().members.clone();
 
       onto.lock().meta_mut().members = members;
-
-      Yield
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn receiver(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-                -> Reaction {
+pub fn receiver(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref of] =>
       match of.lock().meta().receiver.clone() {
         ObjectReceiver(receiver) =>
-          React(caller, receiver),
+          reactor.stage(caller, receiver),
 
         NativeReceiver(receiver) =>
-          React(caller, ObjectRef::new(box
-                          Alien::from_native_receiver(receiver)))
+          reactor.stage(caller, ObjectRef::new(box
+                                  Alien::from_native_receiver(receiver)))
       },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn receive(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-               -> Reaction {
+pub fn receive(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref on, ref receiver] => {
       // TODO: see whether checking whether the 'receiver' is an Alien wrapping
       // a NativeReceiver and using that yields a performance advantage (it
       // should)
       on.lock().meta_mut().receiver = ObjectReceiver(receiver.clone());
-
-      Yield
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn own(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-           -> Reaction {
+pub fn own(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref on, ref index] => {
       unsignedish(index).map(|index| {
@@ -268,15 +248,12 @@ pub fn own(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         }
 
       });
-
-      Yield
     },
     _ => fail!("wrong number of arguments")
   }
 }
 
-pub fn disown(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-              -> Reaction {
+pub fn disown(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref on, ref index] => {
       unsignedish(index).map(|index| {
@@ -287,8 +264,6 @@ pub fn disown(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
         }
 
       });
-
-      Yield
     },
     _ => fail!("wrong number of arguments")
   }

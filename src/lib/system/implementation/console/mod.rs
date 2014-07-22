@@ -35,17 +35,14 @@ pub fn make(machine: &Machine) -> ObjectRef {
 /// # Example
 ///
 ///     implementation console print "Hello, world!"
-pub fn print(machine: &Machine, response: ObjectRef) -> Reaction {
+pub fn print(reactor: &mut Reactor, response: ObjectRef) {
   match response.symbol_ref() {
     Some(string) =>
       stdio::println(string.as_slice()),
 
-    None => {
-      warn!("tried to print[] a non-symbol");
-    }
+    None =>
+      warn!("tried to print[] a non-symbol")
   }
-
-  Yield
 }
 
 /// Debug-prints the given Object's **reference** to stdout. Doesn't return.
@@ -59,9 +56,8 @@ pub fn print(machine: &Machine, response: ObjectRef) -> Reaction {
 /// # Example
 ///
 ///     implementation console show []
-pub fn show(machine: &Machine, response: ObjectRef) -> Reaction {
+pub fn show(reactor: &mut Reactor, response: ObjectRef) {
   println!("{}", response);
-  Yield
 }
 
 /// Debug-prints the given Object (`fmt_paws()`) to stdout. Doesn't return.
@@ -70,14 +66,12 @@ pub fn show(machine: &Machine, response: ObjectRef) -> Reaction {
 /// # Example
 ///
 ///     implementation console inspect [locals]
-pub fn inspect(machine: &Machine, response: ObjectRef) -> Reaction {
+pub fn inspect(reactor: &mut Reactor, response: ObjectRef) {
   let mut stdout = stdio::stdout();
 
   // FIXME: do something if these fail
   let _ = response.lock().fmt_paws(&mut stdout);
   let _ = stdout.write_char('\n');
-
-  Yield
 }
 
 /// Prints a message to the console, including information about the caller.
@@ -89,8 +83,7 @@ pub fn inspect(machine: &Machine, response: ObjectRef) -> Reaction {
 /// # Call-pattern arguments
 ///
 /// 1. The message to print.
-pub fn trace(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
-             -> Reaction {
+pub fn trace(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 
   let mut terminal = term::stdout().expect("terminal could not be opened");
 
@@ -111,5 +104,5 @@ pub fn trace(machine: &Machine, caller: ObjectRef, args: &[ObjectRef])
   let _ = terminal.reset();
   let _ = terminal.write_char('\n');
 
-  React(caller, args[0].clone())
+  reactor.stage(caller, args[0].clone())
 }
