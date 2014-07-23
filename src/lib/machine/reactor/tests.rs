@@ -8,6 +8,8 @@ use script::*;
 use machine::*;
 use machine::reactor::*;
 
+use util;
+
 use std::any::AnyRefExt;
 
 #[test]
@@ -186,26 +188,28 @@ fn combine_with_and_lookup_on_implicit_locals() {
   assert!(reactor.stagings.shift() == Some((caller_ref, value_ref)));
 }
 
-#[test]
-fn serial_reactor_stall_handlers() {
-  let mut reactor = SerialReactor::new(Machine::new());
-
-  let (stalled_tx, stalled_rx) = channel::<()>();
-
-  reactor.on_stall(proc (reactor) {
-    stalled_tx.send(());
-    reactor.stop();
-  });
-
-  reactor.run();
-
-  assert!(stalled_rx.try_recv().is_ok());
+struct ReactorTest {
+  init: proc(&mut Reactor): Send,
+  fini: proc(): Send
 }
 
-#[test]
-fn serial_reactor_react_stop_call() {
-  let     machine = Machine::new();
-  let mut reactor = SerialReactor::new(machine.clone());
+fn test_reactor_stall_handlers() -> ReactorTest {
+  let (stalled_tx, stalled_rx) = channel::<()>();
+
+  ReactorTest {
+    init: proc(reactor) {
+      reactor.on_stall(proc (reactor) {
+        stalled_tx.send(());
+        reactor.stop();
+      });
+    },
+    fini: proc() {
+      assert!(stalled_rx.try_recv().is_ok());
+    }
+  }
+}
+
+fn test_reactor_react_stop_call(machine: &Machine) -> ReactorTest {
 
   let caller_ref = machine.execution(
                      Script(vec![Discard,
@@ -240,11 +244,86 @@ fn serial_reactor_react_stop_call() {
       machine.symbol("stop"), stop_alien_ref);
   }
 
-  // Almost ready...
-  //
-  // Since it's pristine we can really give it anything we want.
-  reactor.stage(caller_ref.clone(), caller_ref);
+  ReactorTest {
+    init: proc (reactor) {
+      // Since it's pristine we can really give it anything we want.
+      reactor.stage(caller_ref.clone(), caller_ref);
+    },
+    fini: proc () {
+    }
+  }
+}
 
-  // Let's go!
-  reactor.run();
+#[test]
+fn serial_reactor_stall_handlers() {
+  util::timeout(1000, proc() {
+    let mut reactor = SerialReactor::new(Machine::new());
+
+    let test = test_reactor_stall_handlers();
+
+    (test.init)(&mut reactor);
+
+    reactor.run();
+
+    (test.fini)();
+  })
+}
+
+#[test]
+fn serial_reactor_react_stop_call() {
+  util::timeout(1000, proc() {
+    let     machine = Machine::new();
+    let mut reactor = SerialReactor::new(machine.clone());
+
+    let test = test_reactor_react_stop_call(&machine);
+
+    (test.init)(&mut reactor);
+
+    reactor.run();
+
+    (test.fini)();
+  })
+}
+
+static PARALLEL_CONFIGS: [uint, ..3] = [2, 4, 8];
+
+#[test]
+fn parallel_reactor_stall_handlers() {
+  for &reactors in PARALLEL_CONFIGS.iter() {
+    util::timeout(1000, proc() {
+      let mut pool = ReactorPool::spawn(Machine::new(), reactors);
+
+      let ReactorTest { init, fini } =
+        test_reactor_stall_handlers();
+
+      pool.on_reactor(proc(reactor) {
+        init(reactor)
+      });
+
+      pool.wait();
+
+      fini();
+    })
+  }
+}
+
+#[test]
+fn parallel_reactor_react_stop_call() {
+  for &reactors in PARALLEL_CONFIGS.iter() {
+    util::timeout(1000, proc() {
+      let     machine = Machine::new();
+      let mut pool    = ReactorPool::spawn(machine.clone(), reactors);
+
+      let ReactorTest { init, fini } =
+        test_reactor_react_stop_call(&machine);
+
+      pool.on_reactor(proc(reactor) {
+        init(reactor)
+      });
+
+      pool.wait();
+
+      fini();
+    })
+  }
 }

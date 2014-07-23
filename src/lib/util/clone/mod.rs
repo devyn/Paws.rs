@@ -17,6 +17,8 @@ use object::alien::Alien;
 use object::thing::Thing;
 use object::locals::Locals;
 
+use std::sync::Arc;
+
 /// Creates a new Thing from the metadata of the given object.
 pub fn to_thing(from: &ObjectRef) -> Thing {
   // TODO: Ask @ELLIOTTCABLE if this is supposed to copy the receiver too
@@ -60,8 +62,11 @@ pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
 
     Err(unknown) => match unknown.try_cast::<Alien>() {
 
-      Ok(alien) =>
-        Some(ObjectRef::new_with_tag(box alien.deref().clone(), from.tag())),
+      Ok(alien) => {
+        let tag: Option<&Arc<String>> = from.tag();
+        debug!("clone::queueable: {}", tag.to_tag().map(|s|(*s).clone()));
+        Some(ObjectRef::new_with_tag(box alien.deref().clone(), tag))
+      },
 
       Err(_) =>
         None

@@ -16,7 +16,7 @@ use getopts::{OptionDuplicated, UnexpectedArgument};
 use paws::cpaws;
 
 use paws::machine::Machine;
-use paws::machine::reactor::{Reactor, SerialReactor};
+use paws::machine::reactor::{Reactor, SerialReactor, ReactorPool};
 
 use paws::object::execution::Execution;
 
@@ -205,10 +205,17 @@ fn main() {
 
     reactor.run()
   } else {
-    // FIXME
-    format_args!(generic_error,
-                 concat!("Error: parallelism is currently broken. Use",
-                         " `--reactors 1`.\n"))
+    let mut pool = ReactorPool::spawn(machine, reactors as uint);
+
+    pool.on_reactor(proc (reactor) {
+      let ok = start(&mut *reactor);
+
+      if !ok {
+        reactor.stop()
+      }
+    });
+
+    pool.wait()
   }
 }
 

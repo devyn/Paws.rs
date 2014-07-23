@@ -19,13 +19,21 @@ BINDEPINFO  = $(dir ${BINOUT})tmp/$(notdir ${BINOUT})-deps.mk
 DOCOUT      = ${BUILDDIR}/doc/paws/index.html
 DOCDIR      = ${BUILDDIR}/doc
 
+ifeq ($(OS),Darwin)
+	# Mac OS X needs the 'coreutils' package, which usually installs `timeout` as
+	# `gtimeout`
+	TIMEOUT = gtimeout
+else
+	TIMEOUT = timeout
+endif
+
 all: ${LIBOUT} ${BINOUT} ${DOCOUT}
 
 clean:
 	rm -rf ${BUILDDIR}
 
 test: ${TESTOUT}
-	${TESTOUT}
+	${TIMEOUT} 2s ${TESTOUT}
 
 doc: ${DOCOUT}
 
