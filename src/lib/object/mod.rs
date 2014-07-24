@@ -1,77 +1,20 @@
-//! Paws objects, encapsulation, and metadata.
+//! Paws objects and metadata.
 
-use std::any::*;
-use std::sync::{Arc, Mutex, MutexGuard};
-use std::io::IoResult;
-use std::fmt::Show;
-use std::fmt;
+use nuketype::{Nuketype, Symbol};
 
 use machine::reactor::Reactor;
 
-pub use object::members::Members;
+use std::any::{AnyRefExt, AnyMutRefExt};
+use std::sync::{Arc, Mutex, MutexGuard};
+use std::fmt::Show;
+use std::fmt;
 
-pub mod thing;
-pub mod symbol;
-pub mod execution;
-pub mod alien;
-pub mod locals;
+pub use self::members::Members;
 
 mod members;
 
 #[cfg(test)]
 mod tests;
-
-/// The interface that all Paws Objects must implement.
-pub trait Object: Any {
-  /// Formats a Paws Object for debugging purposes.
-  fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()>;
-
-  /// Get access to the Object's metadata, including members and such.
-  fn meta<'a>(&'a self) -> &'a Meta;
-
-  /// Get mutable access to the Object's metadata.
-  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta;
-
-  /// Converts an Object trait object to an Any trait object.
-  ///
-  /// You probably don't need to do this, as `AnyRefExt` is implemented for all
-  /// `Object` references, which provides generic `is<T>()` and `as_ref<T>()`
-  /// directly. It only exists in order to implement it.
-  ///
-  /// Additionally, `TypedRefGuard` exists, which is easier to use from an
-  /// `ObjectRef`.
-  fn as_any<'a>(&'a self) -> &'a Any {
-    self as &Any
-  }
-
-  /// Same as `as_any()` but for a mutable ref.
-  ///
-  /// You probably don't need to do this, as `AnyMutRefExt` is implemented for
-  /// all `Object` references, which provides generic `as_mut<T>()` directly. It
-  /// only exists in order to implement it.
-  ///
-  /// Additionally, `TypedRefGuard` exists, which is easier to use from an
-  /// `ObjectRef`.
-  fn as_any_mut<'a>(&'a mut self) -> &'a mut Any {
-    self as &mut Any
-  }
-}
-
-impl<'a> AnyRefExt<'a> for &'a Object {
-  fn is<T:'static>(self) -> bool {
-    self.as_any().is::<T>()
-  }
-
-  fn as_ref<T:'static>(self) -> Option<&'a T> {
-    self.as_any().as_ref::<T>()
-  }
-}
-
-impl<'a> AnyMutRefExt<'a> for &'a mut Object {
-  fn as_mut<T:'static>(self) -> Option<&'a mut T> {
-    self.as_any_mut().as_mut::<T>()
-  }
-}
 
 /// A receiver that simply calls `lookup_member()` on the subject's Meta with
 /// the message as its argument.
@@ -85,7 +28,7 @@ pub fn lookup_receiver(reactor: &mut Reactor, params: Params) {
   let lookup_result = {
     let subject = params.subject.lock();
 
-    subject.deref().meta().members.lookup_pair(&params.message)
+    subject.meta().members.lookup_pair(&params.message)
   };
 
   debug!("{} <lookup_receiver> {} => {}",
@@ -99,15 +42,14 @@ pub fn lookup_receiver(reactor: &mut Reactor, params: Params) {
   }
 }
 
-/// A reference to an object. Use `lock()` to gain access to the `Object`
-/// underneath.
+/// A reference to an object. Use `lock()` to gain access to the data inside.
 #[deriving(Clone)]
 pub struct ObjectRef {
-  i: Arc<ObjectRefInternal>
+  reference: Arc<ObjectBox>
 }
 
-struct ObjectRefInternal {
-  reference:  Mutex<Box<Object+Send+Share>>,
+struct ObjectBox {
+  data:       Mutex<ObjectData>,
 
   /// For lockless symbol comparison.
   symbol_ref: Option<Arc<String>>,
@@ -116,65 +58,80 @@ struct ObjectRefInternal {
   tag:        Option<Arc<String>>
 }
 
+struct ObjectData {
+  nuketype: Box<Nuketype+Send+Share>,
+  meta:     Meta
+}
+
 impl ObjectRef {
-  /// Boxes an Object trait into an Object reference.
-  pub fn new(object: Box<Object+Send+Share>) -> ObjectRef {
+  /// Boxes a `Nuketype` and `Meta`, and returns a reference to that box.
+  pub fn store(nuketype: Box<Nuketype+Send+Share>, meta: Meta) -> ObjectRef {
     ObjectRef {
-      i: Arc::new(ObjectRefInternal {
-        reference:  Mutex::new(object),
+      reference: Arc::new(ObjectBox {
+        data:       Mutex::new(ObjectData {
+                                 nuketype: nuketype,
+                                 meta:     meta
+                               }),
         symbol_ref: None,
         tag:        None
       })
     }
   }
 
-  /// Boxes an Object trait into an Object reference along with a tag for better
-  /// debug output. Affects the result of the `Show` trait.
-  pub fn new_with_tag<T: Tag>(
-                      object: Box<Object+Send+Share>,
-                      tag:    T)
+  /// Boxes a `Nuketype` and `Meta` along with a tag for better debug output.
+  /// Affects the result of the `Show` trait.
+  pub fn store_with_tag<T: Tag>(
+                        nuketype: Box<Nuketype+Send+Share>,
+                        meta:     Meta,
+                        tag:      T)
                       -> ObjectRef {
-
     ObjectRef {
-      i: Arc::new(ObjectRefInternal {
-        reference:  Mutex::new(object),
+      reference: Arc::new(ObjectBox {
+        data:       Mutex::new(ObjectData {
+                                 nuketype: nuketype,
+                                 meta:     meta
+                               }),
         symbol_ref: None,
         tag:        tag.to_tag()
       })
     }
   }
 
-  /// Boxes a Symbol into a Symbol reference.
+  /// Boxes a `Symbol` nuketype into a symbol-reference.
   ///
   /// This is a special case to allow for lockless symbol comparison
-  /// (`ObjectRef::eq_as_symbol()`). All Symbol-containing ObjectRefs are
+  /// (`ObjectRef::eq_as_symbol()`). All `Symbol`-containing `ObjectRef`s are
   /// assumed to have been created this way; behavior is undefined if they are
   /// created with `ObjectRef::new()` instead.
-  pub fn new_symbol(symbol: Box<symbol::Symbol>) -> ObjectRef {
+  pub fn store_symbol(symbol: Box<Symbol>) -> ObjectRef {
     ObjectRef {
-      i: Arc::new(ObjectRefInternal {
+      reference: Arc::new(ObjectBox {
         symbol_ref: Some(symbol.name_ptr()),
-        reference:  Mutex::new(symbol as Box<Object+Send+Share>),
-        tag:        None
+        tag:        None,
+
+        data: Mutex::new(ObjectData {
+          nuketype: symbol as Box<Nuketype+Send+Share>,
+          meta:     Meta::new()
+        })
       })
     }
   }
 
-  /// Obtain exclusive access to the Object this reference points to.
+  /// Obtain exclusive access to the data this reference points to.
   ///
-  /// The Object can be accessed via the returned RAII guard. The returned guard
-  /// also contains a reference to this ObjectRef.
+  /// The Nuketype and Meta can be accessed via the returned RAII guard. The
+  /// returned guard also contains a reference to this ObjectRef.
   pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
     ObjectRefGuard {
       object_ref: self,
-      guard:      self.i.reference.lock()
+      guard:      self.reference.data.lock()
     }
   }
 
   /// Returns true if both `ObjectRef`s are Symbol references that point at the
   /// same Symbol string.
   pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
-    match (&self.i.symbol_ref, &other.i.symbol_ref) {
+    match (&self.reference.symbol_ref, &other.reference.symbol_ref) {
       (&Some(ref a), &Some(ref b)) =>
         (&**a as *const String) == (&**b as *const String),
 
@@ -182,23 +139,23 @@ impl ObjectRef {
     }
   }
 
-  /// If this `ObjectRef` is a Symbol reference, returns a reference to the
+  /// If this `ObjectRef` is a symbol-reference, returns a reference to the
   /// pointer to the Symbol's name.
   pub fn symbol_ref<'a>(&'a self) -> Option<&'a Arc<String>> {
-    self.i.symbol_ref.as_ref()
+    self.reference.symbol_ref.as_ref()
   }
 
   /// If this `ObjectRef` is a reference to something with a tag, returns a
   /// reference to the String representing the tag.
   pub fn tag<'a>(&'a self) -> Option<&'a Arc<String>> {
-    self.i.tag.as_ref()
+    self.reference.tag.as_ref()
   }
 }
 
 impl PartialEq for ObjectRef {
   fn eq(&self, other: &ObjectRef) -> bool {
-    (&*self.i  as *const ObjectRefInternal) ==
-    (&*other.i as *const ObjectRefInternal)
+    (&*self.reference  as *const ObjectBox) ==
+    (&*other.reference as *const ObjectBox)
   }
 }
 
@@ -206,16 +163,18 @@ impl Eq for ObjectRef { }
 
 impl Show for ObjectRef {
   fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
-    match self.i.tag {
+    let _box: &ObjectBox = &*self.reference;
+
+    match _box.tag {
       Some(ref tag) =>
-        write!(out, "[#{:p} ~{:s}]", &*self.i, tag.as_slice()),
+        write!(out, "[#{:p} ~{:s}]", _box, tag.as_slice()),
 
       _ =>
-        match self.i.symbol_ref {
+        match _box.symbol_ref {
           Some(ref string) =>
             write!(out, "[:{:s}]", string.as_slice()),
           None =>
-            write!(out, "[#{:p}]", &*self.i)
+            write!(out, "[#{:p}]", _box)
         }
     }
 
@@ -276,10 +235,37 @@ impl<T: Tag> Tag for Option<T> {
 /// Exclusive access is dropped when this guard is dropped.
 pub struct ObjectRefGuard<'a> {
   object_ref: &'a ObjectRef,
-  guard:      MutexGuard<'a, Box<Object+Send+Share>>
+  guard:      MutexGuard<'a, ObjectData>
 }
 
 impl<'a> ObjectRefGuard<'a> {
+  /// Get a reference to the guarded object's nuketype data.
+  pub fn nuketype(&self) -> &Nuketype {
+    // XXX: due to Rust bug
+    let nuk_ref: &Nuketype = self.guard.deref().nuketype;
+    nuk_ref
+  }
+
+  /// Get a mutable reference to the guarded object's nuketype data.
+  ///
+  /// Unless you intend to change the type of this object, you probably want
+  /// to use `try_cast()` instead.
+  pub fn nuketype_mut(&mut self) -> &mut Nuketype {
+    // XXX: due to Rust bug
+    let nuk_ref: &mut Nuketype = self.guard.deref_mut().nuketype;
+    nuk_ref
+  }
+
+  /// Get a reference to the guarded object's metadata.
+  pub fn meta(&self) -> &Meta {
+    &self.guard.deref().meta
+  }
+
+  /// Get a mutable reference to the guarded object's metadata.
+  pub fn meta_mut(&mut self) -> &mut Meta {
+    &mut self.guard.deref_mut().meta
+  }
+
   /// Unlocks the guard, returning a reference to the ObjectRef that was used to
   /// create the guard originally.
   ///
@@ -301,11 +287,11 @@ impl<'a> ObjectRefGuard<'a> {
   /// specific type.
   ///
   /// Consumes this guard and wraps into a `TypedRefGuard` if the type of the
-  /// Object within matched the requested type, otherwise, returns this guard
+  /// Nuketype within matched the requested type, otherwise, returns this guard
   /// to be used again.
   pub fn try_cast<T:'static>(self)
                   -> Result<TypedRefGuard<'a, T>, ObjectRefGuard<'a>> {
-    if self.deref().is::<T>() {
+    if self.nuketype().is::<T>() {
       Ok(TypedRefGuard { object_ref_guard: self })
     } else {
       Err(self)
@@ -313,25 +299,23 @@ impl<'a> ObjectRefGuard<'a> {
   }
 }
 
-impl<'a> Deref<Box<Object+Send+Share>> for ObjectRefGuard<'a> {
-  fn deref<'a>(&'a self) -> &'a Box<Object+Send+Share> {
-    self.guard.deref()
-  }
-}
-
-impl<'a> DerefMut<Box<Object+Send+Share>> for ObjectRefGuard<'a> {
-  fn deref_mut<'a>(&'a mut self) -> &'a mut Box<Object+Send+Share> {
-    self.guard.deref_mut()
-  }
-}
-
-/// Allows pre-typechecked guards to be marked with their types to remove
-/// redundant boilerplate when passing `ObjectRefGuard`s around.
+/// Allows pre-typechecked guards to be marked with their Nuketypes' types to
+/// remove redundant boilerplate when passing `ObjectRefGuard`s around.
 pub struct TypedRefGuard<'a, T> {
   object_ref_guard: ObjectRefGuard<'a>
 }
 
 impl<'a, T> TypedRefGuard<'a, T> {
+  /// Get a reference to the guarded object's metadata.
+  pub fn meta(&self) -> &Meta {
+    self.object_ref_guard.meta()
+  }
+
+  /// Get a mutable reference to the guarded object's metadata.
+  pub fn meta_mut(&mut self) -> &mut Meta {
+    self.object_ref_guard.meta_mut()
+  }
+
   /// Unlocks the guard, returning a reference to the ObjectRef that was used to
   /// create the guard originally.
   ///
@@ -357,13 +341,13 @@ impl<'a, T> TypedRefGuard<'a, T> {
 
 impl<'a, T:'static> Deref<T> for TypedRefGuard<'a, T> {
   fn deref<'a>(&'a self) -> &'a T {
-    self.object_ref_guard.deref().as_ref::<T>().unwrap()
+    self.object_ref_guard.nuketype().as_ref::<T>().unwrap()
   }
 }
 
 impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
   fn deref_mut<'a>(&'a mut self) -> &'a mut T {
-    self.object_ref_guard.deref_mut().as_mut::<T>().unwrap()
+    self.object_ref_guard.nuketype_mut().as_mut::<T>().unwrap()
   }
 }
 

@@ -2,38 +2,44 @@
 //!
 //! **FIXME:** Nucleus calls them labels.
 
-use object::*;
-use object::thing::Thing;
-use object::symbol::Symbol;
+use object::{ObjectRef, Meta};
 
-use machine::*;
+use nuketype::{Thing, Symbol};
 
-use util::namespace::*;
+use machine::{Machine, Reactor};
+
+use util::namespace::NamespaceBuilder;
 
 /// Generates an `infrastructure label` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut label = box Thing::new();
+  let mut label = Meta::new();
 
   {
-    let mut add = NamespaceBuilder::new(machine, &mut *label);
+    let mut add = NamespaceBuilder::new(machine, &mut label);
 
     add.call_pattern( "clone",                   clone, 1                     );
     add.call_pattern( "compare",                 compare, 2                   );
     add.call_pattern( "explode",                 explode, 1                   );
   }
 
-  ObjectRef::new_with_tag(label, "(infra. label)")
+  Thing::tagged(label, "(infra. label)")
 }
 
 pub fn clone(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref original] =>
-      match original.lock().try_cast::<Symbol>() {
-        Ok(symbol) =>
-          reactor.stage(caller, ObjectRef::new_symbol(
-                                  box symbol.deref().clone())),
+      match original.symbol_ref() {
+        Some(symbol) => {
+          let symbol = Symbol::create(symbol.clone());
 
-        Err(_) =>
+          let new_meta = original.lock().meta().clone();
+
+          *symbol.lock().meta_mut() = new_meta;
+
+          reactor.stage(caller, symbol);
+        },
+
+        None =>
           warn!("tried to label clone[] {}, which is not a Symbol",
             original)
       },
@@ -69,7 +75,7 @@ pub fn explode(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
             meta.members.push(reactor.machine().symbol(char_str));
           }
 
-          reactor.stage(caller, ObjectRef::new(box Thing::from_meta(meta)))
+          reactor.stage(caller, Thing::create(meta))
         },
         None =>
           warn!("tried to label explode[] {}, which is not a Symbol",

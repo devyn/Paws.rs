@@ -1,12 +1,17 @@
 //! Aliens are similar to Executions but with native, opaque functionality.
 
-use object::*;
-use object::execution::stage_receiver;
+use object::{ObjectRef, TypedRefGuard};
+use object::{Meta, Params, Tag};
+
+use nuketype::Nuketype;
+
 use machine::Reactor;
 
-use std::any::*;
+use std::any::{Any, AnyRefExt, AnyMutRefExt};
 use std::io::IoResult;
 use std::mem::replace;
+
+pub use nuketype::execution::stage_receiver;
 
 #[cfg(test)]
 mod tests;
@@ -28,9 +33,7 @@ pub struct Alien {
 
   /// Routine-specific (non-generic) data. Often used to store multiple
   /// arguments when implementing the nuclear call-pattern.
-  pub data:    Box<Data+Send+Share>,
-
-      meta:    Meta
+  pub data:    Box<Data+Send+Share>
 }
 
 impl Alien {
@@ -38,8 +41,7 @@ impl Alien {
   pub fn new(routine: Routine, data: Box<Data+Send+Share>) -> Alien {
     Alien {
       routine: routine,
-      data:    data,
-      meta:    Meta::with_receiver(stage_receiver)
+      data:    data
     }
   }
 
@@ -79,11 +81,71 @@ impl Alien {
   /// 2. Caller.
   /// 3. Subject.
   /// 4. Message.
-  pub fn from_native_receiver(receiver: fn (&mut Reactor, Params))
-                              -> Alien {
+  pub fn new_from_native_receiver(receiver: fn (&mut Reactor, Params))
+                                  -> Alien {
 
     Alien::new(native_receiver_alien_routine,
                box NativeReceiverData(receiver))
+  }
+
+  /// Boxes up a new Alien with the given `routine` and `data`, and tags it with
+  /// `name`.
+  ///
+  /// See `Alien::new()`.
+  pub fn create<T: Tag>(
+                name:    T,
+                routine: Routine,
+                data:    Box<Data+Send+Share>)
+                -> ObjectRef {
+
+    ObjectRef::store_with_tag(
+      box Alien::new(routine, data),
+      Meta::with_receiver(stage_receiver),
+      name
+    )
+  }
+
+  /// Boxes up a new call-pattern Alien, and tags it with `name`.
+  ///
+  /// See `Alien::new_call_pattern()`.
+  pub fn call_pattern<T: Tag>(
+                      name:    T,
+                      routine: CallPatternRoutine,
+                      n_args:  uint)
+                      -> ObjectRef {
+
+    ObjectRef::store_with_tag(
+      box Alien::new_call_pattern(routine, n_args),
+      Meta::with_receiver(stage_receiver),
+      name
+    )
+  }
+
+  /// Boxes up a new oneshot Alien, and tags it with `name`.
+  ///
+  /// See `Alien::new_oneshot()`.
+  pub fn oneshot<T: Tag>(
+                 name:    T,
+                 routine: OneshotRoutine)
+                 -> ObjectRef {
+
+    ObjectRef::store_with_tag(
+      box Alien::new_oneshot(routine),
+      Meta::with_receiver(stage_receiver),
+      name
+    )
+  }
+
+  /// Boxes up a new Alien based on a native receiver function.
+  ///
+  /// See `Alien::new_from_native_receiver()`.
+  pub fn from_native_receiver(receiver: fn (&mut Reactor, Params))
+                              -> ObjectRef {
+
+    ObjectRef::store(
+      box Alien::new_from_native_receiver(receiver),
+      Meta::with_receiver(stage_receiver)
+    )
   }
 
   /// Calls the Alien's routine with the given `reactor` and `response`.
@@ -103,17 +165,9 @@ impl Alien {
   }
 }
 
-impl Object for Alien {
+impl Nuketype for Alien {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     write!(writer, "Alien")
-  }
-
-  fn meta<'a>(&'a self) -> &'a Meta {
-    &self.meta
-  }
-
-  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
-    &mut self.meta
   }
 }
 
@@ -121,8 +175,7 @@ impl Clone for Alien {
   fn clone(&self) -> Alien {
     Alien {
       routine: self.routine,
-      data:    self.data.clone_to_data(),
-      meta:    self.meta.clone()
+      data:    self.data.clone_to_data()
     }
   }
 }
@@ -351,7 +404,7 @@ fn native_receiver_alien_routine<'a>(
 
   let params = {
     let params_obj = response.lock();
-    let members    = &params_obj.deref().meta().members;
+    let members    = &params_obj.meta().members;
 
     match (members.get(1), members.get(2), members.get(3)) {
       (Some(caller), Some(subject), Some(message)) =>

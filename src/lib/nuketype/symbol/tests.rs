@@ -1,4 +1,4 @@
-use object::symbol::*;
+use super::*;
 
 #[test]
 fn create_symbol_and_retrieve_name() {

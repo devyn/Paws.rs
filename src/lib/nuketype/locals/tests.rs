@@ -1,19 +1,19 @@
-use object::*;
-use object::thing::Thing;
+use super::*;
 
-use machine::*;
+use object::Params;
+
+use nuketype::Thing;
+
+use machine::Machine;
 use machine::reactor::MockReactor;
-
-use object::locals::*;
 
 #[test]
 fn locals_receiver_returns_self_when_name_matches() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let name   = machine.symbol("locals");
-  let locals = ObjectRef::new(box Locals::new(name));
-  let caller = ObjectRef::new(box Thing::new());
+  let locals = Locals::empty(machine.symbol("locals"));
+  let caller = Thing::empty();
 
   locals_receiver(&mut reactor, Params {
     caller:  caller.clone(),
@@ -29,12 +29,11 @@ fn locals_receiver_can_lookup_members_too() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let name   = machine.symbol("locals");
-  let locals = ObjectRef::new(box Locals::new(name));
-  let caller = ObjectRef::new(box Thing::new());
+  let locals = Locals::empty(machine.symbol("locals"));
+  let caller = Thing::empty();
 
   let key    = machine.symbol("key");
-  let value  = ObjectRef::new(box Thing::new());
+  let value  = Thing::empty();
 
   {
     let mut locals = locals.lock();

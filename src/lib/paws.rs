@@ -17,7 +17,6 @@
 
 #![feature(globs)]
 #![feature(phase)]
-#![feature(unsafe_destructor)]
 
 #![warn(missing_doc)]
 
@@ -29,6 +28,7 @@ extern crate log;
 
 pub mod cpaws;
 pub mod object;
+pub mod nuketype;
 pub mod script;
 pub mod machine;
 pub mod system;

@@ -3,28 +3,29 @@
 #![allow(unused_variable)]
 #![allow(missing_doc)]
 
-use object::*;
-use object::thing::Thing;
+use object::{ObjectRef, Meta};
 
-use machine::*;
+use nuketype::Thing;
 
+use machine::{Machine, Reactor};
+
+use util::namespace::NamespaceBuilder;
 use util::clone;
-use util::namespace::*;
 
 /// Generates an `infrastructure execution` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut execution = box Thing::new();
+  let mut execution = Meta::new();
 
   {
-    let mut add = NamespaceBuilder::new(machine, &mut *execution);
+    let mut add = NamespaceBuilder::new(machine, &mut execution);
 
     add.call_pattern( "branch",                  branch, 1                    );
 
     add.call_pattern( "stage",                   stage, 2                     );
-    add.call_pattern( "unstage",                 unstage, 0                   );
+    add.oneshot(      "unstage",                 unstage                      );
   }
 
-  ObjectRef::new_with_tag(execution, "(infra. execution)")
+  Thing::tagged(execution, "(infra. execution)")
 }
 
 pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
@@ -54,6 +55,6 @@ pub fn stage(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   }
 }
 
-pub fn unstage(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
+pub fn unstage(reactor: &mut Reactor, response: ObjectRef) {
   // Do nothing! :D
 }

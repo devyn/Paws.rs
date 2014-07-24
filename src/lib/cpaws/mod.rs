@@ -1,10 +1,13 @@
-//! Implements parsing of cPaws ('canonical paws').
+//! Implements parsing and compilation of cPaws ('canonical paws').
+
+use script::*;
+
+use nuketype::Execution;
+
+use machine::Machine;
 
 use std::str::Chars;
 use std::char::is_whitespace;
-
-use script::*;
-use machine::Machine;
 
 #[cfg(test)]
 mod tests;
@@ -262,8 +265,8 @@ fn compile(machine:      &Machine,
     },
 
     Execution(ref nodes) => {
-      let execution = machine.execution(
-        build_script(machine, nodes.as_slice()));
+      let execution = Execution::create(
+        machine, build_script(machine, nodes.as_slice()));
 
       instructions.push(Push(execution));
       instructions.push(Combine);

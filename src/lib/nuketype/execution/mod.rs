@@ -9,27 +9,34 @@
 //! > used to resume execution at that point, the object itself "moves forward"
 //! > **with** the procedure's execution.
 
-use std::io::IoResult;
-
-use std::sync::Arc;
-
 use script::*;
-use object::*;
+
+use object::{ObjectRef, Meta, Params};
+
+use nuketype::{Nuketype, Locals};
+
+use machine::Machine;
 use machine::reactor::{Reactor, Combination};
 
 use util::clone;
+
+use std::io::IoResult;
+use std::sync::Arc;
 
 #[cfg(test)]
 mod tests;
 
 /// Implements an Execution as a reference to a Script, a program counter, as
 /// well as a stack for evaluating subexpressions.
+///
+/// **Note:** When boxing this nuketype up, make sure to set the receiver to
+/// `stage_receiver` and set up a locals object. `Execution::create()` does this
+/// automatically, so prefer that to `Execution::new()` if possible.
 #[deriving(Clone)]
 pub struct Execution {
   root:     Arc<Script>,
   pc:       uint,
-  stack:    Vec<Option<ObjectRef>>,
-  meta:     Meta
+  stack:    Vec<Option<ObjectRef>>
 }
 
 impl Execution {
@@ -38,9 +45,20 @@ impl Execution {
     Execution {
       root:     Arc::new(root),
       pc:       0,
-      stack:    Vec::new(),
-      meta:     Meta::with_receiver(stage_receiver)
+      stack:    Vec::new()
     }
+  }
+
+  /// Boxes up an Execution into an object with its receiver set to
+  /// `stage_receiver` and a new, empty `locals` object.
+  pub fn create(machine: &Machine, root: Script) -> ObjectRef {
+    let mut meta = Meta::with_receiver(stage_receiver);
+
+    meta.members.push_pair_to_child(
+      machine.locals_sym.clone(),
+      Locals::empty(machine.locals_sym.clone()));
+
+    ObjectRef::store(box Execution::new(root), meta)
   }
 
   /// Returns the "root" Script of the Execution, which the Execution's internal
@@ -107,7 +125,7 @@ impl Execution {
   }
 }
 
-impl Object for Execution {
+impl Nuketype for Execution {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     let Script(ref instructions) = *self.root;
 
@@ -119,7 +137,7 @@ impl Object for Execution {
     loop {
       match stack_iter.next() {
         Some(&Some(ref object_ref)) =>
-          try!(object_ref.lock().fmt_paws(writer)),
+          try!(object_ref.lock().nuketype().fmt_paws(writer)),
 
         Some(&None) =>
           try!(write!(writer, "NoObject")),
@@ -135,14 +153,6 @@ impl Object for Execution {
     try!(write!(writer, "] }}"));
 
     Ok(())
-  }
-
-  fn meta<'a>(&'a self) -> &'a Meta {
-    &self.meta
-  }
-
-  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
-    &mut self.meta
   }
 }
 

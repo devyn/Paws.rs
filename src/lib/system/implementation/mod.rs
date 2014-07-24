@@ -2,16 +2,16 @@
 
 #![allow(unused_variable)]
 
-use object::*;
-use object::thing::Thing;
-use object::alien::Alien;
+use object::{ObjectRef, TypedRefGuard, Meta};
 
-use machine::*;
+use nuketype::{Thing, Alien};
 
+use machine::{Machine, Reactor};
+
+use util::namespace::NamespaceBuilder;
 use util::clone;
-use util::namespace::*;
 
-use std::any::*;
+use std::any::AnyMutRefExt;
 
 pub mod console;
 
@@ -20,18 +20,18 @@ mod tests;
 
 /// Generates an `implementation` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut implementation = box Thing::new();
+  let mut implementation = Meta::new();
 
   {
-    let mut add = NamespaceBuilder::new(machine, &mut *implementation);
+    let mut add = NamespaceBuilder::new(machine, &mut implementation);
 
-    add.namespace(    "console",                 console::make                );
+    add.factory(      "console",                 console::make                );
     add.factory(      "void",                    void                         );
     add.oneshot(      "stop",                    stop                         );
     add.call_pattern( "branch",                  branch, 1                    );
   }
 
-  ObjectRef::new_with_tag(implementation, "(implementation)")
+  Thing::tagged(implementation, "(implementation)")
 }
 
 /// Acts as a void, accepting and discarding objects and then returning itself
@@ -49,7 +49,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
 /// # Example
 ///
 ///     implementation void[] a b c [foo] [bar baz]
-pub fn void(_machine: &Machine) -> Alien {
+pub fn void(_machine: &Machine) -> ObjectRef {
   #[deriving(Clone)]
   struct VoidCaller(Option<ObjectRef>);
 
@@ -79,7 +79,7 @@ pub fn void(_machine: &Machine) -> Alien {
     reactor.stage(caller, alien.unlock().clone())
   }
 
-  Alien::new(void_routine, box VoidCaller(None))
+  Alien::create("void", void_routine, box VoidCaller(None))
 }
 
 /// Halts the machine by terminating its queue. The response is ignored.

@@ -3,14 +3,14 @@
 //! The output conforms to the
 //! [Test Anything Protocol](http://testanything.org/).
 
+use object::{ObjectRef, TypedRefGuard, Meta};
+
+use nuketype::{Thing, Alien};
+
+use machine::{Machine, Reactor};
+
 use std::any::AnyMutRefExt;
 use std::sync::{Arc, Mutex};
-
-use machine::*;
-use object::*;
-use object::execution::Execution;
-use object::alien::Alien;
-use object::thing::Thing;
 
 /// Represents a test suite, containing rules that are added via the
 /// specification interface (see `expose_to()`).
@@ -28,16 +28,16 @@ impl Suite {
   }
 
   /// Expose the specification interface to the given Execution's locals.
-  pub fn expose_to(&self, execution: &mut Execution, machine: &Machine) {
-    let mut specification = box Thing::new();
+  pub fn expose_to(&self, execution: &ObjectRef, machine: &Machine) {
+    let mut specification = Meta::new();
 
-    specification.meta_mut().members
+    specification.members
       .push_pair(machine.symbol("rule"), self.rule_alien());
 
-    let specification  = ObjectRef::new_with_tag(specification, 
-                                               "(specification)");
+    let specification  = Thing::tagged(specification, 
+                                       "(specification)");
 
-    let     locals_ref = execution.meta_mut().members
+    let     locals_ref = execution.lock().meta().members
                            .lookup_pair(&machine.locals_sym).unwrap();
     let mut locals_obj = locals_ref.lock();
     let     locals     = &mut locals_obj.meta_mut().members;
@@ -88,7 +88,7 @@ impl Suite {
       completed:      false
     };
 
-    ObjectRef::new(box Alien::new(rule_routine, data))
+    Alien::create("rule", rule_routine, data)
   }
 }
 
@@ -102,21 +102,23 @@ struct Rule {
 
 impl Rule {
   fn start(&self, suite: &Suite, reactor: &mut Reactor, index: uint) {
-    let pass = ObjectRef::new(box
-      Alien::new(set_rule_result_routine,
-                 box SetRuleResultAlienData {
-                   suite: suite.clone(),
-                   rule:  index,
-                   to:    Pass
-                 }));
+    let pass =
+      Alien::create("pass",
+                    set_rule_result_routine,
+                    box SetRuleResultAlienData {
+                      suite: suite.clone(),
+                      rule:  index,
+                      to:    Pass
+                    });
 
-    let fail = ObjectRef::new(box
-      Alien::new(set_rule_result_routine,
-                 box SetRuleResultAlienData {
-                   suite: suite.clone(),
-                   rule:  index,
-                   to:    Fail
-                 }));
+    let fail =
+      Alien::create("fail",
+                    set_rule_result_routine,
+                    box SetRuleResultAlienData {
+                      suite: suite.clone(),
+                      rule:  index,
+                      to:    Fail
+                    });
 
     // Add pass and fail to locals of `body`
     {

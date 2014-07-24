@@ -2,12 +2,13 @@
 
 #![allow(unused_variable)]
 
-use object::*;
-use object::thing::Thing;
+use object::{ObjectRef, Meta};
 
-use machine::*;
+use nuketype::Thing;
 
-use util::namespace::*;
+use machine::{Machine, Reactor};
+
+use util::namespace::NamespaceBuilder;
 
 use std::io::stdio;
 
@@ -16,10 +17,10 @@ use term::Terminal;
 
 /// Generates an `implementation console` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut console = box Thing::new();
+  let mut console = Meta::new();
 
   {
-    let mut add = NamespaceBuilder::new(machine, &mut *console);
+    let mut add = NamespaceBuilder::new(machine, &mut console);
 
     add.oneshot(      "print",                   print                        );
     add.oneshot(      "show",                    show                         );
@@ -27,7 +28,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "trace",                   trace, 1                     );
   }
 
-  ObjectRef::new_with_tag(console, "(impl. console)")
+  Thing::tagged(console, "(impl. console)")
 }
 
 /// Prints a Symbol to stdout. Doesn't return. Oneshot.
@@ -70,7 +71,7 @@ pub fn inspect(reactor: &mut Reactor, response: ObjectRef) {
   let mut stdout = stdio::stdout();
 
   // FIXME: do something if these fail
-  let _ = response.lock().fmt_paws(&mut stdout);
+  let _ = response.lock().nuketype().fmt_paws(&mut stdout);
   let _ = stdout.write_char('\n');
 }
 
@@ -96,7 +97,7 @@ pub fn trace(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   let _ = match args {
     [ref symbol] => match symbol.symbol_ref() {
       Some(string) => write!(terminal, "{:s}", string.as_slice()),
-      None         => symbol.lock().fmt_paws(terminal.get_mut())
+      None         => symbol.lock().nuketype().fmt_paws(terminal.get_mut())
     },
     _ => fail!("wrong number of arguments")
   };

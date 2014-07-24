@@ -5,13 +5,11 @@
 
 use machine::Machine;
 
-use object::{Object, ObjectRef, ObjectRefGuard};
+use object::{ObjectRef, ObjectRefGuard};
 use object::{ObjectReceiver, NativeReceiver};
-use object::Params;
+use object::{Meta, Params};
 
-use object::thing::Thing;
-use object::execution::Execution;
-use object::alien::Alien;
+use nuketype::{Thing, Execution, Alien};
 
 use util::clone;
 
@@ -119,7 +117,7 @@ pub fn combine<'a, R: Reactor>(
     Combination { subject: None,
                   message: message } => {
 
-      let members = &caller.deref().meta().members;
+      let members = &caller.meta().members;
 
       // Find the caller's locals and make that the subject.
       //
@@ -139,18 +137,12 @@ pub fn combine<'a, R: Reactor>(
   // iterate through until we find the receiver we want to use.
   let mut use_receiver_of = subject.clone();
   loop {
-    // We have to clone this again because rustc apparently isn't smart enough
-    // to realize that `drop(current_target)` means that use_receiver_of is no
-    // longer borrowed >_>
-    let current_target_ref = use_receiver_of.clone();
-    let current_target     = current_target_ref.lock();
+    let receiver = use_receiver_of.lock().meta().receiver.clone();
 
-    match current_target.deref().meta().receiver.clone() {
+    match receiver {
       // If the receiver is a NativeReceiver, then call the function it
       // contains.
       NativeReceiver(function) => {
-        drop(current_target); // Release the lock ASAP.
-
         return function(reactor, Params {
           caller:  caller,
           subject: subject,
@@ -161,8 +153,6 @@ pub fn combine<'a, R: Reactor>(
       // Otherwise, we need to check if this receiver is queueable (Execution
       // or Alien) or not.
       ObjectReceiver(receiver) => {
-        drop(current_target); // Release the lock ASAP.
-
         match clone::queueable(&receiver, reactor.machine()) {
           Some(clone) => {
             // If it is, we construct a params object `[, caller, subject,
@@ -170,13 +160,13 @@ pub fn combine<'a, R: Reactor>(
             // object as the response.
             //
             // TODO: Find a way to not have to clone it all the time.
-            let mut params = box Thing::new();
+            let mut params = Meta::new();
 
-            params.meta_mut().members.set(1, caller);
-            params.meta_mut().members.set(2, subject);
-            params.meta_mut().members.set(3, message);
+            params.members.set(1, caller);
+            params.members.set(2, subject);
+            params.members.set(3, message);
 
-            return reactor.stage(clone, ObjectRef::new(params))
+            return reactor.stage(clone, Thing::create(params))
           },
 
           None => {

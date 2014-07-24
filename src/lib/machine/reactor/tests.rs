@@ -1,12 +1,13 @@
-use object::*;
-use object::alien::Alien;
-use object::thing::Thing;
-use object::execution::Execution;
+use super::*;
 
 use script::*;
 
-use machine::*;
-use machine::reactor::*;
+use object::{ObjectRef, Relationship, ObjectReceiver};
+use object::TypedRefGuard;
+
+use nuketype::{Alien, Thing, Execution};
+
+use machine::Machine;
 
 use util;
 
@@ -17,8 +18,8 @@ fn combine_via_direct_default_receiver() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let caller_ref  = machine.execution(Script(vec![]));
-  let message_ref = ObjectRef::new(box Thing::new());
+  let caller_ref  = Execution::create(&machine, Script(vec![]));
+  let message_ref = Thing::empty();
 
   // This might seem a little unclear, but effectively what we're doing here is
   // combining the caller itself with a target message. Could be a real-world
@@ -45,10 +46,10 @@ fn combine_via_indirect_default_receiver() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let caller_ref = machine.execution(Script(vec![]));
-  let other_ref  = ObjectRef::new(box Thing::new());
-  let key_ref    = ObjectRef::new(box Thing::new());
-  let value_ref  = ObjectRef::new(box Thing::new());
+  let caller_ref = Execution::create(&machine, Script(vec![]));
+  let other_ref  = Thing::empty();
+  let key_ref    = Thing::empty();
+  let value_ref  = Thing::empty();
 
   {
     // The goal here is to use the other's `lookup_receiver` on the caller to
@@ -90,11 +91,12 @@ fn combine_via_executionish_receiver() {
 
   let stub_data     = box StubData;
 
-  let caller_ref    = machine.execution(Script(vec![]));
-  let execution_ref = machine.execution(Script(vec![]));
-  let alien_ref     = ObjectRef::new(box Alien::new(stub_routine, stub_data));
-  let other_ref     = ObjectRef::new(box Thing::new());
-  let message_ref   = ObjectRef::new(box Thing::new());
+  let caller_ref    = Execution::create(&machine, Script(vec![]));
+  let other_ref     = Thing::empty();
+  let message_ref   = Thing::empty();
+
+  let execution_ref = Execution::create(&machine, Script(vec![]));
+  let alien_ref     = Alien::create("stub", stub_routine, stub_data);
 
   // We have to try two things here: changing receiver to an Execution, and
   // changing receiver to an Alien. `other_ref` will be our target.
@@ -102,15 +104,17 @@ fn combine_via_executionish_receiver() {
   // Both reactions should be the similar: reacting the chosen receiver with a
   // params object `[, caller, other, message]`
 
-  let check_reaction = |reactor: &mut MockReactor, receiver| {
-    combine(reactor, caller_ref.lock(), Combination {
+  for receiver in [execution_ref, alien_ref].iter() {
+    other_ref.lock().meta_mut().receiver = ObjectReceiver(receiver.clone());
+
+    combine(&mut reactor, caller_ref.lock(), Combination {
       subject: Some(other_ref.clone()),
       message: message_ref.clone()
     });
 
     match reactor.stagings.shift() {
       Some((execution, response_ref)) => {
-        assert!(execution != receiver);
+        assert!(&execution != receiver);
 
         match execution.lock().try_cast::<Execution>() {
           Ok(execution) =>
@@ -128,7 +132,7 @@ fn combine_via_executionish_receiver() {
 
         let response = response_ref.lock();
 
-        let members = &response.deref().meta().members;
+        let members = &response.meta().members;
 
         // Match with `[, caller, other, message]`
         assert!(members.get(0).is_none());
@@ -146,14 +150,6 @@ fn combine_via_executionish_receiver() {
       None => fail!("staging queue is empty")
     }
   };
-
-  other_ref.lock().meta_mut().receiver = ObjectReceiver(execution_ref.clone());
-
-  check_reaction(&mut reactor, execution_ref);
-
-  other_ref.lock().meta_mut().receiver = ObjectReceiver(alien_ref.clone());
-
-  check_reaction(&mut reactor, alien_ref);
 }
 
 #[test]
@@ -161,16 +157,16 @@ fn combine_with_and_lookup_on_implicit_locals() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let caller_ref = machine.execution(Script(vec![]));
+  let caller_ref = Execution::create(&machine, Script(vec![]));
 
-  let key_ref    = ObjectRef::new(box Thing::new());
-  let value_ref  = ObjectRef::new(box Thing::new());
+  let key_ref    = Thing::empty();
+  let value_ref  = Thing::empty();
 
   {
     // Add a key and value to the caller's locals.
     let caller     = caller_ref.lock();
 
-    let locals_ref = caller.deref().meta().members
+    let locals_ref = caller.meta().members
                            .lookup_pair(&machine.symbol("locals"))
                            .expect("locals not found on created Execution!");
 
@@ -211,7 +207,7 @@ fn test_reactor_stall_handlers() -> ReactorTest {
 
 fn test_reactor_react_stop_call(machine: &Machine) -> ReactorTest {
 
-  let caller_ref = machine.execution(
+  let caller_ref = Execution::create(machine,
                      Script(vec![Discard,
                                  PushLocals,
                                  Push(machine.symbol("stop")),
@@ -227,14 +223,13 @@ fn test_reactor_react_stop_call(machine: &Machine) -> ReactorTest {
     reactor.stop();
   }
 
-  let stop_alien_ref = ObjectRef::new(box Alien::new(
-                         stop_routine, box() ()));
+  let stop_alien_ref = Alien::create("stop", stop_routine, box() ());
 
   {
     // Affix a stop alien onto the caller's locals.
     let caller     = caller_ref.lock();
 
-    let locals_ref = caller.deref().meta().members
+    let locals_ref = caller.meta().members
                            .lookup_pair(&machine.symbol("locals"))
                            .expect("locals not found on created Execution!");
 

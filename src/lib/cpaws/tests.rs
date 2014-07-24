@@ -1,8 +1,11 @@
-use cpaws::*;
-use machine::Machine;
+use super::*;
+
 use script::*;
+
+use machine::Machine;
 use object::ObjectRef;
-use object::execution;
+
+use nuketype;
 
 fn test_parse_nodes(test_case: &str,
                     expected_result: Result<Vec<Node>, String>) {
@@ -218,7 +221,7 @@ fn build_script_executions() {
       ExpectInstruction(PushLocals),
       ExpectPush(|o| {
         let execution =
-          o.lock().try_cast::<execution::Execution>()
+          o.lock().try_cast::<nuketype::Execution>()
             .ok().expect("expected Execution");
 
         let Script(ref instructions) = *execution.deref().root();

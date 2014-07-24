@@ -1,38 +1,40 @@
 //! Utilities pertaining to 'namespace' objects, which are currently just Things
 //! with a custom receiver.
 
-use object::*;
-use object::thing::Thing;
-use object::alien::{Alien, CallPatternRoutine, OneshotRoutine};
+use object::{ObjectRef, Meta};
 
-use machine::*;
+use nuketype::alien::Alien;
+use nuketype::alien::CallPatternRoutine;
+use nuketype::alien::OneshotRoutine;
+
+use machine::Machine;
 
 /// Generates namespaces.
 pub struct NamespaceBuilder<'a> {
   machine: &'a Machine,
-  thing:   &'a mut Thing
+  meta:    &'a mut Meta
 }
 
 impl<'a> NamespaceBuilder<'a> {
-  /// Creates a new NamespaceBuilder wrapping the given Thing for the Machine.
+  /// Creates a new NamespaceBuilder wrapping the given Meta for the Machine.
   pub fn new(machine: &'a Machine,
-             thing:   &'a mut Thing)
+             meta:    &'a mut Meta)
              -> NamespaceBuilder<'a> {
 
     NamespaceBuilder {
       machine: machine,
-      thing:   thing
+      meta:    meta
     }
   }
 
-  /// Adds a new Alien from a factory function with the given name.
+  /// Adds a new object from a factory function with the given name.
   pub fn factory(&mut     self,
                  name:    &str,
-                 factory: fn (&Machine) -> Alien) {
+                 factory: fn (&Machine) -> ObjectRef) {
 
-    self.thing.meta_mut().members.push_pair_to_child(
+    self.meta.members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new_with_tag(box factory(self.machine), name)
+      factory(self.machine)
     );
   }
 
@@ -42,10 +44,9 @@ impl<'a> NamespaceBuilder<'a> {
                       routine: CallPatternRoutine,
                       n_args:  uint) {
 
-    self.thing.meta_mut().members.push_pair_to_child(
+    self.meta.members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new_with_tag(box
-        Alien::new_call_pattern(routine, n_args), name)
+      Alien::call_pattern(name, routine, n_args)
     );
   }
 
@@ -54,21 +55,9 @@ impl<'a> NamespaceBuilder<'a> {
                  name:    &str,
                  routine: OneshotRoutine) {
 
-    self.thing.meta_mut().members.push_pair_to_child(
+    self.meta.members.push_pair_to_child(
       self.machine.symbol(name),
-      ObjectRef::new_with_tag(box
-        Alien::new_oneshot(routine), name)
-    );
-  }
-
-  /// Adds a new namespace with the given name, from a `make()` function.
-  pub fn namespace(&mut self,
-                   name: &str,
-                   make: fn (&Machine) -> ObjectRef) {
-
-    self.thing.meta_mut().members.push_pair_to_child(
-      self.machine.symbol(name),
-      make(self.machine)
+      Alien::oneshot(name, routine)
     );
   }
 }

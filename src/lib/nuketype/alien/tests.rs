@@ -1,23 +1,26 @@
-use machine::*;
-use machine::reactor::MockReactor;
+use super::*;
 
-use object::*;
-use object::alien::Alien;
-use object::thing::Thing;
+use object::{ObjectRef, Params, Meta};
 
-use std::any::*;
+use nuketype::Thing;
+
+use machine::Machine;
+use machine::reactor::{Reactor, MockReactor};
+
+use std::any::AnyRefExt;
 
 /// Alien that concatenates symbols it receives into its internal data.
 mod simple {
-  use machine::*;
-  use object::*;
-  use object::alien::Alien;
-  use object::symbol::Symbol;
+  use object::{ObjectRef, TypedRefGuard};
 
-  use std::any::*;
+  use nuketype::{Alien, Symbol};
 
-  pub fn new_alien() -> Alien {
-    Alien::new(routine, box String::new())
+  use machine::Reactor;
+
+  use std::any::AnyMutRefExt;
+
+  pub fn create() -> ObjectRef {
+    Alien::create("simple", routine, box String::new())
   }
 
   #[allow(unused_variable)]
@@ -40,7 +43,7 @@ fn simple_alien() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let alien_ref = ObjectRef::new(box simple::new_alien());
+  let alien_ref = simple::create();
 
   let hello = machine.symbol("Hello, ");
   let world = machine.symbol("world!");
@@ -82,10 +85,9 @@ fn call_pattern_alien() {
     reactor.stage(caller, symbol);
   }
 
-  let caller_ref = ObjectRef::new(box Thing::new());
+  let caller_ref = Thing::empty();
 
-  let alien_ref = ObjectRef::new(box
-                    Alien::new_call_pattern(routine, 3));
+  let alien_ref = Alien::call_pattern("routine", routine, 3);
 
   let assert_caller_and_alien = |reactor: &mut MockReactor, send| {
     let alien = alien_ref.lock().try_cast::<Alien>().ok().unwrap();
@@ -143,10 +145,9 @@ fn oneshot_alien() {
     reactor.stage(response, symbol);
   }
 
-  let caller_ref = ObjectRef::new(box Thing::new());
+  let caller_ref = Thing::empty();
 
-  let alien_ref = ObjectRef::new(box
-                    Alien::new_oneshot(routine));
+  let alien_ref = Alien::oneshot("routine", routine);
 
   {
     let alien = alien_ref.lock().try_cast::<Alien>().ok().unwrap();
@@ -179,11 +180,11 @@ fn alien_from_native_receiver() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let caller  = ObjectRef::new(box Thing::new());
-  let subject = ObjectRef::new(box Thing::new());
-  let message = ObjectRef::new(box Thing::new());
+  let caller  = Thing::empty();
+  let subject = Thing::empty();
+  let message = Thing::empty();
 
-  let params  = ObjectRef::new(box Thing::from_meta({
+  let params  = Thing::create({
 
     let mut meta = Meta::new();
 
@@ -192,15 +193,14 @@ fn alien_from_native_receiver() {
     meta.members.push(message.clone());
 
     meta
-  }));
+  });
 
   fn receiver(reactor: &mut Reactor, params: Params) {
     reactor.stage(params.caller.clone(),  params.message.clone());
     reactor.stage(params.subject.clone(), params.message.clone());
   }
 
-  let alien_ref = ObjectRef::new(box
-                    Alien::from_native_receiver(receiver));
+  let alien_ref = Alien::from_native_receiver(receiver);
 
   for _ in range(0u, 3) {
     let alien = alien_ref.lock().try_cast::<Alien>().ok().unwrap();

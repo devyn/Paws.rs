@@ -1,6 +1,8 @@
 //! Symbols are atoms that are interned into a machine-local table.
 
-use object::*;
+use object::ObjectRef;
+
+use nuketype::Nuketype;
 
 use std::io::IoResult;
 use std::sync::Arc;
@@ -75,21 +77,27 @@ impl Collection for SymbolMap {
 /// other `Symbol`s' strings from the same `SymbolMap`.
 #[deriving(Clone)]
 pub struct Symbol {
-  name: Arc<String>,
-  meta: Meta
+  name: Arc<String>
 }
 
 impl Symbol {
   /// Creates a new Symbol object containing the given string Arc box.
   ///
-  /// Note that `ObjectRef::new_symbol()` should be used instead of
-  /// `ObjectRef::new()` when boxing this type up, in order to ensure that
+  /// Note that `ObjectRef::store_symbol()` should be used instead of
+  /// `ObjectRef::store()` when boxing this type up, in order to ensure that
   /// non-locking symbol comparison (`ObjectRef::eq_as_symbol()`) succeeds.
+  ///
+  /// The best way to create a Symbol is `Machine::symbol()`, as it handles
+  /// everything automatically, including populating the symbol map.
   pub fn new(name: Arc<String>) -> Symbol {
     Symbol {
-      name: name,
-      meta: Meta::new()
+      name: name
     }
+  }
+
+  /// Boxes up a new Symbol object containing the given string Arc box.
+  pub fn create(name: Arc<String>) -> ObjectRef {
+    ObjectRef::store_symbol(box Symbol::new(name))
   }
 
   /// The string that the symbol represents.
@@ -112,16 +120,8 @@ impl Symbol {
   }
 }
 
-impl Object for Symbol {
+impl Nuketype for Symbol {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     write!(writer, "Symbol[{}]", self.name())
-  }
-
-  fn meta<'a>(&'a self) -> &'a Meta {
-    &self.meta
-  }
-
-  fn meta_mut<'a>(&'a mut self) -> &'a mut Meta {
-    &mut self.meta
   }
 }

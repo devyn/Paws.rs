@@ -1,16 +1,16 @@
-use object::*;
-use object::thing::Thing;
-use object::symbol::Symbol;
+use super::*;
 
-use machine::*;
+use nuketype::{Thing, Symbol};
+
+use machine::Machine;
 use machine::reactor::MockReactor;
 
 use std::sync::Arc;
 
 #[test]
 fn members_set_and_get() {
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -39,9 +39,9 @@ fn members_set_and_get() {
 
 #[test]
 fn members_iter() {
-  let object0 = ObjectRef::new(box Thing::new());
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object0 = Thing::empty();
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -59,7 +59,7 @@ fn members_iter() {
 
 #[test]
 fn members_own_and_disown() {
-  let object = ObjectRef::new(box Thing::new());
+  let object = Thing::empty();
 
   let mut members = Members::new();
 
@@ -78,8 +78,8 @@ fn members_own_and_disown() {
 
 #[test]
 fn members_push() {
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -95,9 +95,9 @@ fn members_push() {
 
 #[test]
 fn members_pop() {
-  let object0 = ObjectRef::new(box Thing::new());
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object0 = Thing::empty();
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -114,8 +114,8 @@ fn members_pop() {
 
 #[test]
 fn members_unshift() {
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -131,9 +131,9 @@ fn members_unshift() {
 
 #[test]
 fn members_shift() {
-  let object0 = ObjectRef::new(box Thing::new());
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object0 = Thing::empty();
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -150,8 +150,8 @@ fn members_shift() {
 
 #[test]
 fn members_insert() {
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -178,9 +178,9 @@ fn members_insert() {
 
 #[test]
 fn members_remove() {
-  let object0 = ObjectRef::new(box Thing::new());
-  let object1 = ObjectRef::new(box Thing::new());
-  let object2 = ObjectRef::new(box Thing::new());
+  let object0 = Thing::empty();
+  let object1 = Thing::empty();
+  let object2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -202,7 +202,7 @@ fn members_remove() {
 
 #[test]
 fn members_delete() {
-  let object0 = ObjectRef::new(box Thing::new());
+  let object0 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -218,12 +218,12 @@ fn members_delete() {
 
 #[test]
 fn members_lookup_pair_by_ref_equality() {
-  let key1 = ObjectRef::new(box Thing::new());
-  let key2 = ObjectRef::new(box Thing::new());
-  let key3 = ObjectRef::new(box Thing::new()); // doesn't exist
+  let key1 = Thing::empty();
+  let key2 = Thing::empty();
+  let key3 = Thing::empty(); // doesn't exist
 
-  let val1 = ObjectRef::new(box Thing::new());
-  let val2 = ObjectRef::new(box Thing::new());
+  let val1 = Thing::empty();
+  let val2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -242,8 +242,8 @@ fn members_lookup_pair_by_symbol_equality() {
   let key1 = machine.symbol("key1");
   let key2 = machine.symbol("key2");
 
-  let val1 = ObjectRef::new(box Thing::new());
-  let val2 = ObjectRef::new(box Thing::new());
+  let val1 = Thing::empty();
+  let val2 = Thing::empty();
 
   let mut members = Members::new();
 
@@ -257,7 +257,7 @@ fn members_lookup_pair_by_symbol_equality() {
 
 #[test]
 fn members_lookup_pair_on_empty_members() {
-  let key     = ObjectRef::new(box Thing::new());
+  let key     = Thing::empty();
   let members = Members::new();
 
   assert!(members.lookup_pair(&key) == None);
@@ -265,8 +265,8 @@ fn members_lookup_pair_on_empty_members() {
 
 #[test]
 fn members_push_pair() {
-  let key = ObjectRef::new(box Thing::new());
-  let val = ObjectRef::new(box Thing::new());
+  let key = Thing::empty();
+  let val = Thing::empty();
 
   let mut members = Members::new();
 
@@ -284,7 +284,7 @@ fn members_push_pair() {
   {
     // Check non-child pair (1)
     let pair = members.get(1).unwrap().to().lock();
-    let pair_members = &pair.deref().meta().members;
+    let pair_members = &pair.meta().members;
 
     assert!( pair_members.get(0).is_none());
 
@@ -298,7 +298,7 @@ fn members_push_pair() {
   {
     // Check child pair (2)
     let pair = members.get(2).unwrap().to().lock();
-    let pair_members = &pair.deref().meta().members;
+    let pair_members = &pair.meta().members;
 
     assert!( pair_members.get(0).is_none());
 
@@ -342,8 +342,8 @@ fn members_len() {
 
 #[test]
 fn object_ref_equality() {
-  let object_ref1 = ObjectRef::new(box Thing::new());
-  let object_ref2 = ObjectRef::new(box Thing::new());
+  let object_ref1 = Thing::empty();
+  let object_ref2 = Thing::empty();
 
   assert!(&object_ref1 == &object_ref1);
   assert!(&object_ref1 != &object_ref2);
@@ -351,7 +351,7 @@ fn object_ref_equality() {
 
 #[test]
 fn object_ref_guards() {
-  let object_ref = ObjectRef::new(box Thing::new());
+  let object_ref = Thing::empty();
 
   assert!(object_ref.lock().meta().members.len() == 0);
 }
@@ -359,7 +359,7 @@ fn object_ref_guards() {
 #[test]
 fn typed_ref_guards() {
   let sym        = Arc::new("foo".to_string());
-  let object_ref = ObjectRef::new_symbol(box Symbol::new(sym.clone()));
+  let object_ref = ObjectRef::store_symbol(box Symbol::new(sym.clone()));
 
   assert!(object_ref.lock().try_cast::<Thing>().is_err());
   assert!(object_ref.lock().try_cast::<Symbol>().is_ok());
@@ -373,11 +373,11 @@ fn symbol_ref_eq_as_symbol() {
   let sym1 = Arc::new("foo".to_string());
   let sym2 = Arc::new("bar".to_string());
 
-  let sym1_ref1 = ObjectRef::new_symbol(box Symbol::new(sym1.clone()));
-  let sym1_ref2 = ObjectRef::new_symbol(box Symbol::new(sym1.clone()));
+  let sym1_ref1 = ObjectRef::store_symbol(box Symbol::new(sym1.clone()));
+  let sym1_ref2 = ObjectRef::store_symbol(box Symbol::new(sym1.clone()));
 
-  let sym2_ref1 = ObjectRef::new_symbol(box Symbol::new(sym2.clone()));
-  let sym2_ref2 = ObjectRef::new_symbol(box Symbol::new(sym2.clone()));
+  let sym2_ref1 = ObjectRef::store_symbol(box Symbol::new(sym2.clone()));
+  let sym2_ref2 = ObjectRef::store_symbol(box Symbol::new(sym2.clone()));
 
   // Identity
   assert!( sym1_ref1.eq_as_symbol(&sym1_ref1));
@@ -406,8 +406,8 @@ fn symbol_ref_eq_as_symbol() {
 
 #[test]
 fn non_symbol_ref_eq_as_symbol_is_false() {
-  let thing1_ref = ObjectRef::new(box Thing::new());
-  let thing2_ref = ObjectRef::new(box Thing::new());
+  let thing1_ref = Thing::empty();
+  let thing2_ref = Thing::empty();
 
   // Identity should be false here, because they aren't symbols
   assert!(!thing1_ref.eq_as_symbol(&thing1_ref));
@@ -420,8 +420,8 @@ fn non_symbol_ref_eq_as_symbol_is_false() {
 
 #[test]
 fn mixed_refs_eq_as_symbol_is_false() {
-  let thing_ref  = ObjectRef::new(box Thing::new());
-  let symbol_ref = ObjectRef::new(box Symbol::new(
+  let thing_ref  = Thing::empty();
+  let symbol_ref = ObjectRef::store_symbol(box Symbol::new(
                      Arc::new("foo".to_string())));
 
   assert!(!thing_ref.eq_as_symbol(&symbol_ref));
@@ -446,25 +446,25 @@ fn setup_lookup_receiver_test() -> LookupReceiverTestEnv {
   let machine = Machine::new();
   let reactor = MockReactor::new(machine.clone());
 
-  let caller_ref  = ObjectRef::new(box Thing::new());
+  let caller_ref  = Thing::empty();
 
-  let obj_key_ref = ObjectRef::new(box Thing::new());
-  let obj_val_ref = ObjectRef::new(box Thing::new());
+  let obj_key_ref = Thing::empty();
+  let obj_val_ref = Thing::empty();
 
   let sym_key_ref = machine.symbol("foo");
   let sym_key_sym = sym_key_ref.symbol_ref().unwrap().clone();
   let sym_val_ref = machine.symbol("bar");
 
   let target_ref = {
-    let mut target = box Thing::new();
+    let mut target = Meta::new();
 
-    target.meta_mut().members.push_pair(
+    target.members.push_pair(
       obj_key_ref.clone(), obj_val_ref.clone());
 
-    target.meta_mut().members.push_pair(
+    target.members.push_pair(
       sym_key_ref.clone(), sym_val_ref.clone());
 
-    ObjectRef::new(target)
+    Thing::create(target)
   };
 
   LookupReceiverTestEnv {
@@ -509,7 +509,7 @@ fn lookup_receiver_hit_symbol_key() {
   lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
-    message: ObjectRef::new_symbol(box
+    message: ObjectRef::store_symbol(box
                Symbol::new(env.sym_key_sym.clone()))
   });
 
@@ -530,7 +530,7 @@ fn lookup_receiver_miss_object_key() {
   lookup_receiver(&mut env.reactor, Params {
     caller:  env.caller_ref.clone(),
     subject: env.target_ref.clone(),
-    message: ObjectRef::new(box Thing::new())
+    message: Thing::empty()
   });
 
   assert!(env.reactor.stagings.is_empty());

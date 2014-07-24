@@ -7,27 +7,28 @@
 #![allow(unused_variable)]
 #![allow(missing_doc)]
 
-use object::*;
-use object::thing::Thing;
-use object::alien::Alien;
+use object::{ObjectRef, Meta};
+use object::{ObjectReceiver, NativeReceiver};
 
-use machine::*;
+use nuketype::{Thing, Alien};
 
+use machine::{Machine, Reactor};
+
+use util::namespace::NamespaceBuilder;
 use util::clone;
-use util::namespace::*;
 
 pub mod label;
 pub mod execution;
 
 /// Generates an `infrastructure` namespace object.
 pub fn make(machine: &Machine) -> ObjectRef {
-  let mut infrastructure = box Thing::new();
+  let mut infrastructure = Meta::new();
 
   {
-    let mut add = NamespaceBuilder::new(machine, &mut *infrastructure);
+    let mut add = NamespaceBuilder::new(machine, &mut infrastructure);
 
-    add.namespace(    "label",                   label::make                  );
-    add.namespace(    "execution",               execution::make              );
+    add.factory(      "label",                   label::make                  );
+    add.factory(      "execution",               execution::make              );
 
     add.call_pattern( "empty",                   empty, 0                     );
 
@@ -55,12 +56,12 @@ pub fn make(machine: &Machine) -> ObjectRef {
     add.call_pattern( "disown",                  disown, 2                    );
   }
 
-  ObjectRef::new_with_tag(infrastructure, "(infrastructure)")
+  Thing::tagged(infrastructure, "(infrastructure)")
 }
 
 pub fn empty(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 
-  reactor.stage(caller, ObjectRef::new(box Thing::new()));
+  reactor.stage(caller, Thing::empty());
 }
 
 pub fn get(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
@@ -193,7 +194,7 @@ pub fn compare(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 pub fn clone(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref original] =>
-      reactor.stage(caller, ObjectRef::new(box clone::to_thing(original))),
+      reactor.stage(caller, clone::to_thing(original)),
 
     _ => fail!("wrong number of arguments")
   }
@@ -218,8 +219,7 @@ pub fn receiver(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
           reactor.stage(caller, receiver),
 
         NativeReceiver(receiver) =>
-          reactor.stage(caller, ObjectRef::new(box
-                                  Alien::from_native_receiver(receiver)))
+          reactor.stage(caller, Alien::from_native_receiver(receiver)),
       },
     _ => fail!("wrong number of arguments")
   }

@@ -41,8 +41,9 @@ ${LIBOUT}: ${LIBSRC} | ${BUILDDIR}
 	${RUSTC} -O ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
 	  ${LIBSRC} -o ${LIBOUT}
 
+# FIXME: stack overflows without -O for some reason
 ${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} ${RUSTFLAGS} --test --dep-info ${TESTDEPINFO} \
+	${RUSTC} -O ${RUSTFLAGS} --test --dep-info ${TESTDEPINFO} \
 	  ${TESTSRC} -o ${TESTOUT}
 
 ${BINOUT}: ${BINSRC} ${LIBOUT} | ${BUILDDIR}

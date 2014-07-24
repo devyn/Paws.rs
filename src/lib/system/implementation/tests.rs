@@ -1,10 +1,8 @@
 use system::implementation;
 
-use object::*;
-use object::thing::Thing;
-use object::alien::Alien;
+use nuketype::{Thing, Alien};
 
-use machine::*;
+use machine::Machine;
 use machine::reactor::MockReactor;
 
 #[test]
@@ -12,9 +10,9 @@ fn void_accepts_forever() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let void   = ObjectRef::new(box implementation::void(&machine));
-  let caller = ObjectRef::new(box Thing::new());
-  let obj    = ObjectRef::new(box Thing::new());
+  let void   = implementation::void(&machine);
+  let caller = Thing::empty();
+  let obj    = Thing::empty();
 
   Alien::realize(
     void.lock().try_cast::<Alien>().ok().unwrap(),
@@ -53,7 +51,7 @@ fn stop_stops() {
   let     machine = Machine::new();
   let mut reactor = MockReactor::new(machine.clone());
 
-  let caller = ObjectRef::new(box Thing::new());
+  let caller = Thing::empty();
 
   let reaction = implementation::stop(&mut reactor, caller);
 

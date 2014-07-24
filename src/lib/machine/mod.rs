@@ -3,14 +3,9 @@
 //! They may have `Reactor`s operating within their context, which are the
 //! evaluation cores of Paws.
 
-use script::Script;
-
-use object::Object;
 use object::ObjectRef;
 
-use object::symbol::{Symbol, SymbolMap};
-use object::execution::Execution;
-use object::locals::Locals;
+use nuketype::symbol::{Symbol, SymbolMap};
 
 use system::implementation;
 use system::infrastructure;
@@ -45,8 +40,7 @@ impl Machine {
   /// Creates a new Machine.
   pub fn new() -> Machine {
     let mut symbol_map = SymbolMap::new();
-    let     locals_sym = ObjectRef::new_symbol(
-                           box Symbol::new(symbol_map.intern("locals")));
+    let     locals_sym = Symbol::create(symbol_map.intern("locals"));
 
     Machine {
       symbol_map:     Arc::new(Mutex::new(symbol_map)),
@@ -60,37 +54,20 @@ impl Machine {
   ///
   /// This is the recommended way to create new Symbols.
   pub fn symbol(&self, string: &str) -> ObjectRef {
-    ObjectRef::new_symbol(
-      box Symbol::new(self.symbol_map.lock().intern(string)))
-  }
-
-  /// Creates an Execution object from the given `Script` with a 'locals' member
-  /// pointing at a new `Locals` named "locals".
-  ///
-  /// This is the recommended way to create new Executions.
-  pub fn execution(&self, root: Script) -> ObjectRef {
-    let mut execution = box Execution::new(root);
-
-    let locals_key = ObjectRef::new_symbol(box Symbol::new(
-                       self.locals_sym.symbol_ref().unwrap().clone()));
-
-    let locals_ref = ObjectRef::new(box Locals::new(self.locals_sym.clone()));
-
-    execution.meta_mut().members.push_pair_to_child(locals_key, locals_ref);
-
-    ObjectRef::new(execution)
+    Symbol::create(self.symbol_map.lock().intern(string))
   }
 
   /// Exposes the system interface (`infrastructure` and `implementation`) as
   /// members of the locals of the given Execution.
-  pub fn expose_system_to(&self, execution: &mut Execution) {
+  pub fn expose_system_to(&self, execution: &ObjectRef) {
     let System {
           infrastructure: infrastructure,
           implementation: implementation
         } = self.system();
 
-    let     locals_ref = execution.meta_mut().members
-                           .lookup_pair(&self.locals_sym).unwrap();
+    let     locals_ref = execution.lock().meta().members
+                           .lookup_pair(&self.locals_sym)
+                           .expect("Execution is missing locals!");
     let mut locals_obj = locals_ref.lock();
     let     locals     = &mut locals_obj.meta_mut().members;
 

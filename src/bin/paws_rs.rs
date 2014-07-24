@@ -18,7 +18,7 @@ use paws::cpaws;
 use paws::machine::Machine;
 use paws::machine::reactor::{Reactor, SerialReactor, ReactorPool};
 
-use paws::object::execution::Execution;
+use paws::nuketype::Execution;
 
 use paws::specification::Suite;
 
@@ -276,12 +276,10 @@ fn eval(reactor: &mut Reactor, input: &str, filename: &str) -> bool {
       // Compile an execution...
       let script        = cpaws::build_script(reactor.machine(),
                                               nodes.as_slice());
-      let execution_ref = reactor.machine().execution(script);
+      let execution_ref = Execution::create(reactor.machine(), script);
 
       // ...expose the system interface to it...
-      reactor.machine().expose_system_to(
-        &mut *execution_ref.lock().try_cast::<Execution>()
-                                  .ok().unwrap());
+      reactor.machine().expose_system_to(&execution_ref);
 
       // and stage!
       reactor.stage(execution_ref.clone(), execution_ref.clone());
@@ -304,17 +302,13 @@ fn spec(reactor: &mut Reactor, input: &str, filename: &str) -> bool {
       // Compile an execution...
       let script        = cpaws::build_script(reactor.machine(),
                                               nodes.as_slice());
-      let execution_ref = reactor.machine().execution(script);
+      let execution_ref = Execution::create(reactor.machine(), script);
 
       // ...expose the system interface to it...
-      reactor.machine().expose_system_to(
-        &mut *execution_ref.lock().try_cast::<Execution>()
-                                  .ok().unwrap());
+      reactor.machine().expose_system_to(&execution_ref);
 
       // ...expose the specification interface to it...
-      suite.expose_to(&mut *execution_ref.lock().try_cast::<Execution>()
-                              .ok().unwrap(),
-                      reactor.machine());
+      suite.expose_to(&execution_ref, reactor.machine());
 
       // and stage!
       reactor.stage(execution_ref.clone(), execution_ref.clone());
