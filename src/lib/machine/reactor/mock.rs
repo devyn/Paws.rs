@@ -34,7 +34,7 @@ impl MockReactor {
       stagings:       Vec::new(),
       stall_handlers: Vec::new(),
       machine:        machine,
-      cache:          Cache::new()
+      cache:          Cache::new_serial()
     }
   }
 }

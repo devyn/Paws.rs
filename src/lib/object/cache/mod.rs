@@ -1,6 +1,6 @@
 //! Caches for common operations on Paws objects.
 
-use object::{ObjectRef, WeakObjectRef};
+use object::{mod, ObjectRef, WeakObjectRef};
 
 use std::sync::Arc;
 use std::collections::LruCache;
@@ -9,10 +9,12 @@ use std::collections::LruCache;
 mod tests;
 
 static SYM_LOOKUP_CACHE_SIZE: uint = 64;
+static RECEIVER_CACHE_SIZE: uint = 64;
 
 /// Provides caching for various common operations on Paws objects.
 pub struct Cache {
   sym_lookup_cache: LruCache<SymLookupCacheKey, SymLookupCacheEntry>,
+  receiver_cache:   Option<LruCache<ReceiverCacheKey, ReceiverCacheEntry>>,
   stats:            CacheStats
 }
 
@@ -24,7 +26,15 @@ pub struct CacheStats {
 
   /// The number of times `sym_lookup()` has successfully found a match in the
   /// cache since it was created.
-  pub sym_lookup_hits:   u64
+  pub sym_lookup_hits:   u64,
+
+  /// The number of times `receiver()` has failed to find a match in the cache
+  /// since it was created.
+  pub receiver_misses:   u64,
+
+  /// The number of times `receiver()` has successfully found a match in the
+  /// cache since it was created.
+  pub receiver_hits:     u64
 }
 
 #[allow(raw_pointer_deriving)]
@@ -38,17 +48,58 @@ struct SymLookupCacheEntry {
   value:             WeakObjectRef
 }
 
+type ReceiverCacheKey = ObjectRef;
+
+struct ReceiverCacheEntry {
+  version:  uint,
+  receiver: object::Receiver
+}
+
 impl Cache {
   /// Construct a new cache.
-  pub fn new() -> Cache {
+  fn new(parallel: bool) -> Cache {
+    // This is clever. Maybe too clever/ugly?
+    let if_parallel =
+      if parallel {
+        fn some<T>(f: || -> T) -> Option<T> {
+          Some(f())
+        }
+        some
+      } else {
+        fn none<T>(_: || -> T) -> Option<T> {
+          None
+        }
+        none
+      };
+
     Cache {
       sym_lookup_cache: LruCache::new(SYM_LOOKUP_CACHE_SIZE),
 
+      receiver_cache:   if_parallel(|| LruCache::new(RECEIVER_CACHE_SIZE)),
+
       stats: CacheStats {
         sym_lookup_misses: 0,
-        sym_lookup_hits:   0
+        sym_lookup_hits:   0,
+        receiver_misses:   0,
+        receiver_hits:     0
       }
     }
+  }
+
+  /// Construct a new cache for a serial reactor.
+  ///
+  /// This disables optimizations that are only useful for reactors that run in
+  /// parallel and need to avoid locking on objects.
+  pub fn new_serial() -> Cache {
+    Cache::new(false)
+  }
+
+  /// Construct a new cache for a parallel reactor.
+  ///
+  /// This enables optimizations that are useful for reactors that run in
+  /// parallel.
+  pub fn new_parallel() -> Cache {
+    Cache::new(true)
   }
 
   /// Get information about cache performance.
@@ -174,5 +225,69 @@ impl Cache {
         None            => false
       }
     }
+  }
+
+  /// Get an object's `meta().receiver` with caching.
+  ///
+  /// This optimization is disabled for serial reactors, as it's purely to avoid
+  /// locking.
+  pub fn receiver(&mut self, object: ObjectRef) -> object::Receiver {
+    // Only use receiver cache if enabled.
+    let receiver_cache =
+      match self.receiver_cache {
+        Some(ref mut c) => c,
+        None            => return object.lock().meta().receiver.clone()
+      };
+
+    // We're only interested in caching if the object isn't too short-lived.
+    //
+    // XXX: This is a bit of a hack to make sure this isn't an obviously
+    // short-lived object. If the meta version is 0, we just lock and get the
+    // receiver, and then increment it. Should definitely revisit this and do
+    // something better, though.
+    if object.meta_version() == 0 {
+      // Using `meta_mut()` ensures we increment the version so this doesn't
+      // happen next time.
+      return object.lock().meta_mut().receiver.clone()
+    }
+
+    // Try to get a hit.
+    match receiver_cache.get(&object) {
+      Some(entry) if entry.version == object.meta_version() => {
+        self.stats.receiver_hits += 1;
+
+        debug!("receiver  hit: ({} hits / {} misses)",
+          self.stats.receiver_hits, self.stats.receiver_misses);
+
+        return entry.receiver.clone()
+      },
+      _ => ()
+    }
+
+    // Either not found in the cache, or the cache entry was invalidated because
+    // the version was different.
+
+    self.stats.receiver_misses += 1;
+
+    debug!("receiver miss: ({} hits / {} misses)",
+      self.stats.receiver_hits, self.stats.receiver_misses);
+
+    let entry = {
+      // This is written this way to ensure we get the `meta_version()`
+      // while the object is locked, otherwise it could be inconsistent.
+
+      let object_lock = object.lock();
+      
+      ReceiverCacheEntry {
+        version:  object.meta_version(),
+        receiver: object_lock.meta().receiver.clone()
+      }
+    };
+
+    let receiver = entry.receiver.clone();
+
+    receiver_cache.put(object, entry);
+
+    receiver
   }
 }

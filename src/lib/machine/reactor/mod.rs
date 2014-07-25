@@ -140,7 +140,7 @@ pub fn combine<'a, R: Reactor>(
   // iterate through until we find the receiver we want to use.
   let mut use_receiver_of = subject.clone();
   loop {
-    let receiver = use_receiver_of.lock().meta().receiver.clone();
+    let receiver = reactor.cache().receiver(use_receiver_of);
 
     match receiver {
       // If the receiver is a NativeReceiver, then call the function it

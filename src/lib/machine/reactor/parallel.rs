@@ -195,7 +195,7 @@ impl ParallelReactor {
         pool:           pool,
         stagings:       RingBuf::new(),
         stall_handlers: Vec::new(),
-        cache:          Cache::new()
+        cache:          Cache::new_parallel()
       };
 
       reactor.run()

@@ -1,5 +1,7 @@
 use super::*;
 
+use object;
+
 use machine::Machine;
 
 use nuketype::Thing;
@@ -19,7 +21,7 @@ pub fn sym_lookup_miss_and_hit() {
     dictionary.members.push_pair(machine.symbol("bar"), bar.clone());
   });
 
-  let mut cache = Cache::new();
+  let mut cache = Cache::new_serial();
 
   assert_eq!(0, cache.stats().sym_lookup_misses);
   assert_eq!(0, cache.stats().sym_lookup_hits);
@@ -76,7 +78,7 @@ pub fn sym_lookup_invalidate() {
     dictionary.members.push(pair.clone());
   });
 
-  let mut cache = Cache::new();
+  let mut cache = Cache::new_serial();
 
   // Prime the cache by allowing it to see `foo`.
   cache.sym_lookup(dictionary.clone(), foo_sym.clone());
@@ -110,4 +112,130 @@ pub fn sym_lookup_invalidate() {
 
   assert_eq!(None, result);
   assert_eq!(3, cache.stats().sym_lookup_misses);
+}
+
+#[test]
+pub fn receiver_miss_and_hit() {
+  let receiver1 = Thing::empty();
+  let receiver2 = Thing::empty();
+
+  let object1 = Thing::from_fn(|meta| {
+    meta.receiver = object::ObjectReceiver(receiver1.clone());
+  });
+
+  let object2 = Thing::from_fn(|meta| {
+    meta.receiver = object::ObjectReceiver(receiver2.clone());
+  });
+
+  // Ensure the versions are > 0
+  object1.lock().meta_mut();
+  object2.lock().meta_mut();
+
+  let mut cache = Cache::new_parallel();
+
+  assert_eq!(0, cache.stats().receiver_misses);
+  assert_eq!(0, cache.stats().receiver_hits);
+
+  // object1 :: receiver1: miss
+  match cache.receiver(object1.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver1, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(1, cache.stats().receiver_misses);
+  assert_eq!(0, cache.stats().receiver_hits);
+
+  // object1 :: receiver1: hit
+  match cache.receiver(object1.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver1, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(1, cache.stats().receiver_misses);
+  assert_eq!(1, cache.stats().receiver_hits);
+
+  // object2 :: receiver2: miss
+  match cache.receiver(object2.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver2, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(2, cache.stats().receiver_misses);
+  assert_eq!(1, cache.stats().receiver_hits);
+
+  // object2 :: receiver2: hit
+  match cache.receiver(object2.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver2, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(2, cache.stats().receiver_misses);
+  assert_eq!(2, cache.stats().receiver_hits);
+}
+
+#[test]
+pub fn receiver_invalidate() {
+  let receiver1 = Thing::empty();
+  let receiver2 = Thing::empty();
+
+  let object = Thing::from_fn(|meta| {
+    meta.receiver = object::ObjectReceiver(receiver1.clone());
+  });
+
+  // Ensure the version is > 0
+  object.lock().meta_mut();
+
+  let mut cache = Cache::new_parallel();
+
+  // Prime the cache
+  cache.receiver(object.clone());
+
+  assert_eq!(1, cache.stats().receiver_misses);
+  assert_eq!(0, cache.stats().receiver_hits);
+
+  // Make sure it is indeed returning receiver1
+  match cache.receiver(object.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver1, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(1, cache.stats().receiver_misses);
+  assert_eq!(1, cache.stats().receiver_hits);
+
+  // Now invalidate the cache by setting the receiver to receiver2
+  object.lock().meta_mut().receiver =
+    object::ObjectReceiver(receiver2.clone());
+
+  // Make sure it immediately returns receiver2
+  match cache.receiver(object.clone()) {
+    object::ObjectReceiver(receiver) =>
+      assert_eq!(receiver2, receiver),
+
+    _ =>
+      fail!("expected ObjectReceiver")
+  }
+
+  assert_eq!(2, cache.stats().receiver_misses);
+  assert_eq!(1, cache.stats().receiver_hits);
+
+  // And make sure it can still hit after changing it
+  cache.receiver(object.clone());
+
+  assert_eq!(2, cache.stats().receiver_misses);
+  assert_eq!(2, cache.stats().receiver_hits);
 }
