@@ -20,7 +20,7 @@ fn void_accepts_forever() {
     caller.clone()
   );
 
-  match reactor.stagings.shift() {
+  match reactor.stagings.remove(0) {
     Some((execution, response)) => {
       assert!(execution == caller);
       assert!(response  == void);
@@ -36,7 +36,7 @@ fn void_accepts_forever() {
       obj.clone()
     );
 
-    match reactor.stagings.shift() {
+    match reactor.stagings.remove(0) {
       Some((execution, response)) => {
         assert!(execution == caller);
         assert!(response  == void);

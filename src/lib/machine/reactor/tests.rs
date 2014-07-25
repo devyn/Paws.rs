@@ -29,7 +29,7 @@ fn combine_via_direct_default_receiver() {
     message: message_ref.clone()
   });
 
-  match reactor.stagings.shift() {
+  match reactor.stagings.remove(0) {
     Some((execution, response)) => {
       assert!(message_ref == response);
 
@@ -112,7 +112,7 @@ fn combine_via_executionish_receiver() {
       message: message_ref.clone()
     });
 
-    match reactor.stagings.shift() {
+    match reactor.stagings.remove(0) {
       Some((execution, response_ref)) => {
         assert!(&execution != receiver);
 

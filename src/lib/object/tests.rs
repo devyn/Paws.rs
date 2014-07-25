@@ -113,42 +113,6 @@ fn members_pop() {
 }
 
 #[test]
-fn members_unshift() {
-  let object1 = Thing::empty();
-  let object2 = Thing::empty();
-
-  let mut members = Members::new();
-
-  members.unshift(      object1.clone());
-  members.unshift_child(object2.clone());
-
-  assert!( members.vec[1].get_ref().is_child());
-  assert!( members.vec[1].get_ref().to() == &object2);
-
-  assert!(!members.vec[2].get_ref().is_child());
-  assert!( members.vec[2].get_ref().to() == &object1);
-}
-
-#[test]
-fn members_shift() {
-  let object0 = Thing::empty();
-  let object1 = Thing::empty();
-  let object2 = Thing::empty();
-
-  let mut members = Members::new();
-
-  members.vec.push(Some(Relationship::new(object0.clone())));
-  members.vec.push(Some(Relationship::new(object1.clone())));
-  members.vec.push(Some(Relationship::new(object2.clone())));
-
-  assert!(members.shift() == Some(Relationship::new(object1)));
-  assert!(members.shift() == Some(Relationship::new(object2)));
-  assert!(members.shift().is_none());
-
-  assert!(members.vec.shift() == Some(Some(Relationship::new(object0))));
-}
-
-#[test]
 fn members_insert() {
   let object1 = Thing::empty();
   let object2 = Thing::empty();

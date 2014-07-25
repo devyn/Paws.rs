@@ -135,7 +135,7 @@ pub fn unaffix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 pub fn prefix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref onto, ref what] =>
-      onto.lock().meta_mut().members.unshift(what.clone()),
+      onto.lock().meta_mut().members.insert(1, what.clone()),
 
     _ => fail!("wrong number of arguments")
   }
@@ -144,7 +144,7 @@ pub fn prefix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 pub fn unprefix(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref from] =>
-      match from.lock().meta_mut().members.shift() {
+      match from.lock().meta_mut().members.remove(1) {
         Some(relationship) => reactor.stage(caller, relationship.unwrap()),
         None               => return
       },

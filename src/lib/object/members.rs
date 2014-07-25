@@ -150,25 +150,6 @@ impl Members {
     }
   }
 
-  /// Prefixes the given object as a non-child Relationship.
-  pub fn unshift(&mut self, object: ObjectRef) {
-    self.insert(1, object)
-  }
-
-  /// Prefixes the given object as a child Relationship.
-  pub fn unshift_child(&mut self, object: ObjectRef) {
-    self.insert_child(1, object)
-  }
-
-  /// Removes and returns the first Relationship, unless the list is empty or
-  /// there was a hole at the beginning.
-  ///
-  /// Obeys the noughty rule, so 'empty' is defined as 'one or fewer' elements,
-  /// and 'beginning' and 'first' as index 1, not 0.
-  pub fn shift(&mut self) -> Option<Relationship> {
-    self.remove(1)
-  }
-
   /// Inserts the given object as a non-child Relationship at the given index,
   /// pushing further Relationships upward.
   ///
