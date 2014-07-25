@@ -7,7 +7,7 @@ use machine::Machine;
 
 use object::{ObjectRef, ObjectRefGuard};
 use object::{ObjectReceiver, NativeReceiver};
-use object::{Meta, Params};
+use object::{Meta, Params, Cache};
 
 use nuketype::{Thing, Execution, Alien};
 
@@ -55,6 +55,9 @@ pub trait Reactor {
 
   /// Gets a reference to the machine this reactor is associated with.
   fn machine(&self) -> &Machine;
+
+  /// Gets a mutable reference to this reactor's cache.
+  fn cache(&mut self) -> &mut Cache;
 }
 
 /// Describes a Combination of a `message` against a `subject`.

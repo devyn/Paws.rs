@@ -3,7 +3,7 @@ use super::realize;
 
 use machine::Machine;
 
-use object::ObjectRef;
+use object::{ObjectRef, Cache};
 
 use std::collections::{Deque, RingBuf};
 use std::sync::Semaphore;
@@ -18,7 +18,8 @@ pub struct SerialReactor {
   alive:          bool,
   stagings:       RingBuf<(ObjectRef, ObjectRef)>,
   stall_handlers: Vec<proc (&mut Reactor)>,
-  machine:        Machine
+  machine:        Machine,
+  cache:          Cache
 }
 
 impl SerialReactor {
@@ -29,7 +30,8 @@ impl SerialReactor {
       alive:          true,
       stagings:       RingBuf::new(),
       stall_handlers: Vec::new(),
-      machine:        machine
+      machine:        machine,
+      cache:          Cache::new()
     }
   }
 
@@ -121,5 +123,9 @@ impl Reactor for SerialReactor {
 
   fn machine(&self) -> &Machine {
     &self.machine
+  }
+
+  fn cache(&mut self) -> &mut Cache {
+    &mut self.cache
   }
 }

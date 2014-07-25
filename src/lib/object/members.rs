@@ -215,9 +215,7 @@ impl Members {
   /// * Iteration is done in reverse order; key and value are second and
   ///   third elements respectively, so result is `Some(goodbye)`
   pub fn lookup_pair(&self, key: &ObjectRef) -> Option<ObjectRef> {
-    if self.vec.is_empty() { return None }
-
-    for maybe_relationship in self.vec.tail().iter().rev() {
+    for maybe_relationship in self.iter().rev() {
       match maybe_relationship {
         &Some(ref relationship) => {
           let object  = relationship.to().lock();

@@ -2,7 +2,7 @@ use super::Reactor;
 
 use machine::Machine;
 
-use object::ObjectRef;
+use object::{ObjectRef, Cache};
 
 /// A fake reactor that, instead of actually reacting anything, instead simply
 /// accumulates state from the calls made to it.
@@ -20,7 +20,10 @@ pub struct MockReactor {
   pub stall_handlers: Vec<proc (&mut Reactor)>,
 
   /// The machine associated with the reactor.
-  pub machine:        Machine
+  pub machine:        Machine,
+
+  /// The reactor's cache.
+  pub cache:          Cache
 }
 
 impl MockReactor {
@@ -30,7 +33,8 @@ impl MockReactor {
       alive:          true,
       stagings:       Vec::new(),
       stall_handlers: Vec::new(),
-      machine:        machine
+      machine:        machine,
+      cache:          Cache::new()
     }
   }
 }
@@ -54,5 +58,9 @@ impl Reactor for MockReactor {
 
   fn machine(&self) -> &Machine {
     &self.machine
+  }
+
+  fn cache(&mut self) -> &mut Cache {
+    &mut self.cache
   }
 }

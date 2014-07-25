@@ -3,7 +3,7 @@ use super::realize;
 
 use machine::Machine;
 
-use object::ObjectRef;
+use object::{ObjectRef, Cache};
 
 use std::collections::{Deque, RingBuf};
 use std::mem::replace;
@@ -181,7 +181,10 @@ pub struct ParallelReactor {
   stagings:       RingBuf<(ObjectRef, ObjectRef)>,
 
   /// Procedures to be called in the event the pool encounters a stall.
-  stall_handlers: Vec<proc (&mut Reactor)>
+  stall_handlers: Vec<proc (&mut Reactor)>,
+
+  /// Our local cache.
+  cache:          Cache
 }
 
 impl ParallelReactor {
@@ -191,7 +194,8 @@ impl ParallelReactor {
         receiver:       receiver,
         pool:           pool,
         stagings:       RingBuf::new(),
-        stall_handlers: Vec::new()
+        stall_handlers: Vec::new(),
+        cache:          Cache::new()
       };
 
       reactor.run()
@@ -325,5 +329,9 @@ impl Reactor for ParallelReactor {
 
   fn machine(&self) -> &Machine {
     &self.pool.machine
+  }
+
+  fn cache(&mut self) -> &mut Cache {
+    &mut self.cache
   }
 }

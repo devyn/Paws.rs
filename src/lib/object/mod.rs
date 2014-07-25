@@ -5,12 +5,20 @@ use nuketype::{Nuketype, Symbol};
 use machine::reactor::Reactor;
 
 use std::any::{AnyRefExt, AnyMutRefExt};
-use std::sync::{Arc, Mutex, MutexGuard};
+
+use std::hash::Hash;
+use std::hash::sip::SipState;
+
+use std::sync::{Arc, Weak, Mutex, MutexGuard};
 use std::sync::atomics::{AtomicUint, SeqCst};
+
 use std::fmt::Show;
 use std::fmt;
 
+pub use self::cache::Cache;
 pub use self::members::Members;
+
+pub mod cache;
 
 mod members;
 
@@ -26,11 +34,16 @@ mod tests;
 /// This receiver is the default receiver for all Object types, unless
 /// overridden.
 pub fn lookup_receiver(reactor: &mut Reactor, params: Params) {
-  let lookup_result = {
-    let subject = params.subject.lock();
+  // Use the local cache if we're looking up a symbol.
+  let lookup_result =
+    match params.message.symbol_ref() {
+      Some(symbol) =>
+        reactor.cache().sym_lookup(params.subject.clone(), symbol.clone()),
 
-    subject.meta().members.lookup_pair(&params.message)
-  };
+      None =>
+        params.subject.lock().meta()
+          .members.lookup_pair(&params.message)
+    };
 
   debug!("{} <lookup_receiver> {} => {}",
     params.subject, params.message, lookup_result);
@@ -126,6 +139,16 @@ impl ObjectRef {
     }
   }
 
+  /// Returns a new weak reference to the object that this reference points to.
+  ///
+  /// The weak reference will not keep the object alive, and so is suitable for
+  /// caches.
+  pub fn downgrade(&self) -> WeakObjectRef {
+    WeakObjectRef {
+      reference: self.reference.downgrade()
+    }
+  }
+
   /// Returns true if both `ObjectRef`s are Symbol references that point at the
   /// same Symbol string.
   pub fn eq_as_symbol(&self, other: &ObjectRef) -> bool {
@@ -168,6 +191,12 @@ impl PartialEq for ObjectRef {
 
 impl Eq for ObjectRef { }
 
+impl Hash for ObjectRef {
+  fn hash(&self, state: &mut SipState) {
+    (&*self.reference as *const ObjectBox).hash(state)
+  }
+}
+
 impl Show for ObjectRef {
   fn fmt(&self, out: &mut fmt::Formatter) -> fmt::Result {
     let _box: &ObjectBox = &*self.reference;
@@ -188,14 +217,37 @@ impl Show for ObjectRef {
   }
 }
 
-/// A trait to allow `ObjectRef::new_with_tag()` to be called with several
+/// A weak reference to an object. Does not keep the object alive.
+///
+/// This should be used in caches to prevent the cache, which may live
+/// considerably longer than many objects, from keeping objects alive.
+///
+/// Use `upgrade()` to get an `ObjectRef` if the object is still alive.
+pub struct WeakObjectRef {
+  reference: Weak<ObjectBox>
+}
+
+impl WeakObjectRef {
+  /// Attempts to upgrade this weak reference to a strong reference.
+  ///
+  /// Returns `None` if the object is no longer alive.
+  pub fn upgrade(&self) -> Option<ObjectRef> {
+    self.reference.upgrade().map(|reference|
+      ObjectRef {
+        reference: reference
+      }
+    )
+  }
+}
+
+/// A trait to allow `ObjectRef::store_with_tag()` to be called with several
 /// different natural values for tags. This means that both
 ///
-///     ObjectRef::new_with_tag(box object, "my object")
+///     ObjectRef::store_with_tag(box object, meta, "my object")
 ///
 /// and
 ///
-///     ObjectRef::new_with_tag(box object, original.tag())
+///     ObjectRef::store_with_tag(box object, meta, original.tag())
 ///
 /// will work, among other variations.
 pub trait Tag {

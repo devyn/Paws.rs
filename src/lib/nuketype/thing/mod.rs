@@ -43,6 +43,21 @@ impl Thing {
     Thing::create(Meta::new())
   }
 
+  /// Boxes a new Thing by passing empty Meta to a function to modify it first.
+  ///
+  /// # Example
+  ///
+  ///     Thing::from_fn(|meta| {
+  ///       meta.members.push_pair(machine.symbol("foo"), Thing::empty());
+  ///     })
+  pub fn from_fn(function: |&mut Meta|) -> ObjectRef {
+    let mut meta = Meta::new();
+
+    function(&mut meta);
+
+    Thing::create(meta)
+  }
+
   /// Boxes a new Thing with metadata in the form of a Nucleus-lookup-style
   /// pair.
   ///
