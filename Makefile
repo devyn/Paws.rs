@@ -38,16 +38,15 @@ test: ${TESTOUT}
 doc: ${DOCOUT}
 
 ${LIBOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} -O ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} --dep-info ${LIBDEPINFO} \
 	  ${LIBSRC} -o ${LIBOUT}
 
-# FIXME: stack overflows without -O for some reason
 ${TESTOUT}: ${LIBSRC} | ${BUILDDIR}
-	${RUSTC} -O ${RUSTFLAGS} --test --dep-info ${TESTDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} --test --dep-info ${TESTDEPINFO} \
 	  ${TESTSRC} -o ${TESTOUT}
 
 ${BINOUT}: ${BINSRC} ${LIBOUT} | ${BUILDDIR}
-	${RUSTC} -O ${RUSTFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
+	${RUSTC} ${RUSTFLAGS} -L ${BUILDDIR} --dep-info ${BINDEPINFO} \
 	  ${BINSRC} -o ${BINOUT}
 
 ${DOCOUT}: ${LIBSRC} ${LIBOUT} | ${BUILDDIR}

@@ -220,7 +220,7 @@ impl<'a> Tag for &'a str {
 
 impl<'a, T: Tag> Tag for &'a T {
   fn to_tag(&self) -> Option<Arc<String>> {
-    self.to_tag()
+    (**self).to_tag()
   }
 }
 
