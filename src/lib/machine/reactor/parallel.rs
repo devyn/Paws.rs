@@ -281,7 +281,7 @@ impl ParallelReactor {
         block(self),
 
       Stage(execution, response) =>
-        self.stagings.push_back((execution, response)),
+        self.stagings.push((execution, response)),
 
       Stall =>
         self.stall(),
@@ -305,7 +305,7 @@ impl ParallelReactor {
 impl Reactor for ParallelReactor {
   fn stage(&mut self, execution: ObjectRef, response: ObjectRef) {
     if self.stagings.is_empty() {
-      self.stagings.push_back((execution, response));
+      self.stagings.push((execution, response));
     } else {
       self.pool.pending.fetch_add(1, SeqCst);
 

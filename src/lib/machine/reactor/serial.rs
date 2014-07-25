@@ -99,7 +99,7 @@ impl SerialReactor {
 impl Reactor for SerialReactor {
   fn stage(&mut self, execution: ObjectRef, response: ObjectRef) {
     if self.alive {
-      self.stagings.push_back((execution, response));
+      self.stagings.push((execution, response));
     }
   }
 
