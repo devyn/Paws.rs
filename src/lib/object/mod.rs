@@ -6,6 +6,7 @@ use machine::reactor::Reactor;
 
 use std::any::{AnyRefExt, AnyMutRefExt};
 use std::sync::{Arc, Mutex, MutexGuard};
+use std::sync::atomics::{AtomicUint, SeqCst};
 use std::fmt::Show;
 use std::fmt;
 
@@ -49,13 +50,16 @@ pub struct ObjectRef {
 }
 
 struct ObjectBox {
-  data:       Mutex<ObjectData>,
+  data:         Mutex<ObjectData>,
 
   /// For lockless symbol comparison.
-  symbol_ref: Option<Arc<String>>,
+  symbol_ref:   Option<Arc<String>>,
 
   /// Allows tagging references, which makes debug output clearer.
-  tag:        Option<Arc<String>>
+  tag:          Option<Arc<String>>,
+
+  /// For metadata caching.
+  meta_version: AtomicUint,
 }
 
 struct ObjectData {
@@ -66,16 +70,7 @@ struct ObjectData {
 impl ObjectRef {
   /// Boxes a `Nuketype` and `Meta`, and returns a reference to that box.
   pub fn store(nuketype: Box<Nuketype+Send+Share>, meta: Meta) -> ObjectRef {
-    ObjectRef {
-      reference: Arc::new(ObjectBox {
-        data:       Mutex::new(ObjectData {
-                                 nuketype: nuketype,
-                                 meta:     meta
-                               }),
-        symbol_ref: None,
-        tag:        None
-      })
-    }
+    ObjectRef::make(nuketype, meta, None, None)
   }
 
   /// Boxes a `Nuketype` and `Meta` along with a tag for better debug output.
@@ -85,16 +80,7 @@ impl ObjectRef {
                         meta:     Meta,
                         tag:      T)
                       -> ObjectRef {
-    ObjectRef {
-      reference: Arc::new(ObjectBox {
-        data:       Mutex::new(ObjectData {
-                                 nuketype: nuketype,
-                                 meta:     meta
-                               }),
-        symbol_ref: None,
-        tag:        tag.to_tag()
-      })
-    }
+    ObjectRef::make(nuketype, meta, None, tag.to_tag())
   }
 
   /// Boxes a `Symbol` nuketype into a symbol-reference.
@@ -104,14 +90,26 @@ impl ObjectRef {
   /// assumed to have been created this way; behavior is undefined if they are
   /// created with `ObjectRef::new()` instead.
   pub fn store_symbol(symbol: Box<Symbol>) -> ObjectRef {
+    let symbol_ref = symbol.name_ptr();
+
+    ObjectRef::make(symbol, Meta::new(), Some(symbol_ref), None)
+  }
+
+  fn make(nuketype:   Box<Nuketype+Send+Share>,
+          meta:       Meta,
+          symbol_ref: Option<Arc<String>>,
+          tag:        Option<Arc<String>>)
+          -> ObjectRef {
+
     ObjectRef {
       reference: Arc::new(ObjectBox {
-        symbol_ref: Some(symbol.name_ptr()),
-        tag:        None,
+        symbol_ref:   symbol_ref,
+        tag:          tag,
+        meta_version: AtomicUint::new(0),
 
         data: Mutex::new(ObjectData {
-          nuketype: symbol as Box<Nuketype+Send+Share>,
-          meta:     Meta::new()
+          nuketype: nuketype,
+          meta:     meta
         })
       })
     }
@@ -149,6 +147,15 @@ impl ObjectRef {
   /// reference to the String representing the tag.
   pub fn tag<'a>(&'a self) -> Option<&'a Arc<String>> {
     self.reference.tag.as_ref()
+  }
+
+  /// Returns the metadata version of the object pointed to by this `ObjectRef`.
+  ///
+  /// The metadata version is automatically incremented whenever the object's
+  /// metadata is modified, and can be used for caching metadata-related
+  /// information.
+  pub fn meta_version(&self) -> uint {
+    self.reference.meta_version.load(SeqCst)
   }
 }
 
@@ -234,8 +241,8 @@ impl<T: Tag> Tag for Option<T> {
 ///
 /// Exclusive access is dropped when this guard is dropped.
 pub struct ObjectRefGuard<'a> {
-  object_ref: &'a ObjectRef,
-  guard:      MutexGuard<'a, ObjectData>
+  object_ref:    &'a ObjectRef,
+  guard:         MutexGuard<'a, ObjectData>
 }
 
 impl<'a> ObjectRefGuard<'a> {
@@ -262,7 +269,12 @@ impl<'a> ObjectRefGuard<'a> {
   }
 
   /// Get a mutable reference to the guarded object's metadata.
+  ///
+  /// Increments the metadata version of the object so that any metadata caches
+  /// will be invalidated.
   pub fn meta_mut(&mut self) -> &mut Meta {
+    self.object_ref.reference.meta_version.fetch_add(1, SeqCst);
+
     &mut self.guard.deref_mut().meta
   }
 
