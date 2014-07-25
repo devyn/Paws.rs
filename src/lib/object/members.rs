@@ -215,22 +215,23 @@ impl Members {
   /// * Iteration is done in reverse order; key and value are second and
   ///   third elements respectively, so result is `Some(goodbye)`
   pub fn lookup_pair(&self, key: &ObjectRef) -> Option<ObjectRef> {
+    // Iterate through the members, looking for pair-shaped objects with
+    // keys (1) that match the key we're looking for and get the value (2).
     for maybe_relationship in self.iter().rev() {
       match maybe_relationship {
         &Some(ref relationship) => {
           let object  = relationship.to().lock();
           let members = &object.meta().members;
 
-          if members.len() >= 3 {
-            match (members.get(1), members.get(2)) {
-              (Some(rel_key), Some(rel_value)) => {
-                if rel_key.to().eq_as_symbol(key) ||
-                   rel_key.to() == key {
-                  return Some(rel_value.to().clone())
-                }
-              },
-              _ => ()
-            }
+          // Pair objects look approximately like [, key, value].
+          match (members.get(1), members.get(2)) {
+            (Some(rel_key), Some(rel_value)) => {
+              if rel_key.to().eq_as_symbol(key) ||
+                 rel_key.to() == key {
+                return Some(rel_value.to().clone())
+              }
+            },
+            _ => ()
           }
         },
         _ => ()
