@@ -170,11 +170,18 @@ pub fn length(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
 
 pub fn find(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
-    [ref within, ref key] =>
-      match within.lock().meta().members.lookup_pair(key) {
+    [ref within, ref key] => {
+      let result =
+        match key.symbol_ref() {
+          Some(sym) => reactor.cache().sym_lookup(within.clone(), sym.clone()),
+          None      => within.lock().meta().members.lookup_pair(key)
+        };
+
+      match result {
         Some(value) => reactor.stage(caller, value),
         None        => return
-      },
+      }
+    },
     _ => fail!("wrong number of arguments")
   }
 }
