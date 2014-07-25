@@ -2,6 +2,8 @@
 
 *An implementation of [Paws](http://ell.io/spec) in Rust*
 
+[![Build Status](https://travis-ci.org/devyn/Paws.rs.svg?branch=master)](https://travis-ci.org/devyn/Paws.rs)
+
 ## Building
 
     $ make
