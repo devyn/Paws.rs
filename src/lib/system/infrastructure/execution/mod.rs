@@ -31,7 +31,7 @@ pub fn make(machine: &Machine) -> ObjectRef {
 pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref executionish] =>
-      match clone::queueable(executionish, reactor.machine()) {
+      match clone::stageable(executionish, reactor.machine()) {
 
         Some(clone) => reactor.stage(caller, clone),
 

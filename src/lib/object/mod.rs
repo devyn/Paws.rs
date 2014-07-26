@@ -504,9 +504,9 @@ impl Meta {
 
 /// Specifies how a combination against an Object should be handled.
 pub enum Receiver {
-  /// If the object pointed to is queueable (an `Execution` or `Alien`), queue
+  /// If the object pointed to is stageable (an `Execution` or `Alien`), stage
   /// it with a `Params`-style Thing. Otherwise, look at its receiver
-  /// recursively until a queueable or native receiver is found.
+  /// recursively until a stageable or native receiver is found.
   ObjectReceiver(ObjectRef),
 
   /// Call this function immediately to perform the combination, with the given

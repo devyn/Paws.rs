@@ -104,7 +104,7 @@ pub fn stop(reactor: &mut Reactor, _response: ObjectRef) {
 pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref executionish] => {
-      let clone = match clone::queueable(executionish, reactor.machine()) {
+      let clone = match clone::stageable(executionish, reactor.machine()) {
 
         Some(clone) => clone,
 

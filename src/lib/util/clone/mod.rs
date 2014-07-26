@@ -7,7 +7,7 @@
 //!     //...
 //!
 //!     clone::to_thing(...);
-//!     clone::queueable(...);
+//!     clone::stageable(...);
 
 use object::{ObjectRef, Meta, Tag};
 use nuketype::{Thing, Execution, Alien, Locals};
@@ -30,7 +30,7 @@ pub fn to_thing(from: &ObjectRef) -> ObjectRef {
 /// Correctly clones `Execution`s *or* `Alien`s.
 ///
 /// Useful because in Paws-world, they're supposed to behave the same way.
-pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
+pub fn stageable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
   // XXX: This currently clones the receiver too... should it not?
 
   match from.lock().try_cast::<Execution>() {
@@ -67,7 +67,7 @@ pub fn queueable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
 
       Ok(alien) => {
         let tag: Option<&Arc<String>> = from.tag();
-        debug!("clone::queueable: {}", tag.to_tag().map(|s|(*s).clone()));
+        debug!("clone::stageable: {}", tag.to_tag().map(|s|(*s).clone()));
         Some(ObjectRef::store_with_tag(
                box alien.deref().clone(), alien.meta().clone(), tag))
       },

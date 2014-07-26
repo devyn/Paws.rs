@@ -156,10 +156,10 @@ impl Nuketype for Execution {
   }
 }
 
-/// A receiver that first ensures the subject is queueable, clones it, and then
+/// A receiver that first ensures the subject is stageable, clones it, and then
 /// enqueues the clone with the message.
 pub fn stage_receiver(reactor: &mut Reactor, params: Params) {
-  match clone::queueable(&params.subject, reactor.machine()) {
+  match clone::stageable(&params.subject, reactor.machine()) {
     Some(clone) => {
       debug!("stage_receiver: {} cloned to {} <-- {}",
              params.subject, clone, params.message);

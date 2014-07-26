@@ -93,10 +93,10 @@ pub struct Combination {
 /// >    a description of that type's default receiver's algorithm.)
 /// >
 /// > 2. If the `subject` has a `receiver` property, and the value of that
-/// >    property is queueable (i.e. an Execution), then that Execution is the
+/// >    property is stageable (i.e. an Execution), then that Execution is the
 /// >    result of this algorithm.
 /// >
-/// > 3. If the `subject`'s `receiver` is not queueable (that is, not an
+/// > 3. If the `subject`'s `receiver` is not stageable (that is, not an
 /// >    Execution), then recursively apply this algorithm starting at 1, with
 /// >    that `receiver` as the `subject` *for the purposes of this
 /// >    algorithm*. (*Not* for the consumer of this algorithm, who will have
@@ -145,18 +145,17 @@ pub fn combine<'a, R: Reactor>(
     match receiver {
       // If the receiver is a NativeReceiver, then call the function it
       // contains.
-      NativeReceiver(function) => {
+      NativeReceiver(function) =>
         return function(reactor, Params {
           caller:  caller,
           subject: subject,
           message: message
-        })
-      },
+        }),
 
-      // Otherwise, we need to check if this receiver is queueable (Execution
+      // Otherwise, we need to check if this receiver is stageable (Execution
       // or Alien) or not.
-      ObjectReceiver(receiver) => {
-        match clone::queueable(&receiver, reactor.machine()) {
+      ObjectReceiver(receiver) =>
+        match clone::stageable(&receiver, reactor.machine()) {
           Some(clone) => {
             // If it is, we construct a params object `[, caller, subject,
             // message]` and `React` a clone of the receiver with the params
@@ -177,8 +176,7 @@ pub fn combine<'a, R: Reactor>(
             // this receiver as `use_receiver_of`.
             use_receiver_of = receiver;
           }
-        }
-      }
+        },
     }
   }
 }
@@ -231,7 +229,7 @@ pub fn realize<R: Reactor>(
           // Finally, if it was neither an Execution nor an Alien, it
           // really shouldn't have been given to us and we'll just pretend it
           // wasn't.
-          warn!("tried to realize non-queueable {}!", execution_ref)
+          warn!("tried to realize non-stageable {}!", execution_ref)
       }
   }
 }
