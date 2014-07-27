@@ -26,6 +26,8 @@ extern crate term;
 #[phase(plugin, link)]
 extern crate log;
 
+/*DEBUG*/ extern crate time;
+
 pub mod cpaws;
 pub mod object;
 pub mod nuketype;

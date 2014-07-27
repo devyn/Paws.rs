@@ -15,6 +15,9 @@ use std::sync::atomics::{AtomicUint, SeqCst};
 use std::fmt::Show;
 use std::fmt;
 
+/*DEBUG*/ use std::sync::atomics::{INIT_ATOMIC_UINT, Relaxed};
+/*DEBUG*/ use time;
+
 pub use self::cache::Cache;
 pub use self::members::Members;
 
@@ -24,6 +27,8 @@ mod members;
 
 #[cfg(test)]
 mod tests;
+
+/*DEBUG*/ pub static mut clock: AtomicUint = INIT_ATOMIC_UINT;
 
 /// A receiver that simply calls `lookup_member()` on the subject's Meta with
 /// the message as its argument.
@@ -136,10 +141,22 @@ impl ObjectRef {
   /// The Nuketype and Meta can be accessed via the returned RAII guard. The
   /// returned guard also contains a reference to this ObjectRef.
   pub fn lock<'a>(&'a self) -> ObjectRefGuard<'a> {
-    ObjectRefGuard {
+    /*DEBUG*/
+
+    let t1 = time::precise_time_ns();
+
+    let guard = ObjectRefGuard {
       object_ref: self,
       guard:      self.reference.data.lock()
+    };
+
+    let t2 = time::precise_time_ns();
+
+    unsafe {
+      clock.fetch_add((t2 - t1) as uint, Relaxed);
     }
+
+    guard
   }
 
   /// Returns a new weak reference to the object that this reference points to.

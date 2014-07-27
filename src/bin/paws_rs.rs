@@ -1,6 +1,13 @@
+/*DEBUG*/
+#![feature(phase)]
+
 extern crate paws;
 extern crate native;
 extern crate getopts;
+
+/*DEBUG*/
+#[phase(plugin,link)]
+extern crate log;
 
 use std::io;
 use std::os;
@@ -21,6 +28,9 @@ use paws::machine::reactor::{Reactor, SerialReactor, ReactorPool};
 use paws::nuketype::Execution;
 
 use paws::specification::Suite;
+
+/*DEBUG*/ use paws::object;
+/*DEBUG*/ use std::sync::atomics::Relaxed;
 
 #[start]
 fn start(argc: int, argv: *const *const u8) -> int {
@@ -217,6 +227,8 @@ fn main() {
 
     pool.wait()
   }
+
+  info!("object::clock = {}", unsafe {object::clock.load(Relaxed)});
 }
 
 fn handle_getopts_error(error: getopts::Fail_) {
