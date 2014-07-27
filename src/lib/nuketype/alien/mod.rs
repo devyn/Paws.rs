@@ -326,7 +326,11 @@ fn call_pattern_alien_routine<'a>(
   match args {
     Some(args) => {
       // We have args, so we must be done.
-      drop(alien);
+      let alien = alien.unlock();
+
+      debug!("call_pattern_alien_routine: calling {} from {} with {}",
+             alien, caller, args.as_slice());
+
       routine(reactor, caller, args.as_slice())
     },
     None =>
