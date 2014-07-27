@@ -57,7 +57,6 @@ pub fn lookup_receiver(reactor: &mut Reactor, params: Params) {
 }
 
 /// A reference to an object. Use `lock()` to gain access to the data inside.
-#[deriving(Clone)]
 pub struct ObjectRef {
   reference: Arc<ObjectBox>
 }
@@ -73,6 +72,9 @@ struct ObjectBox {
 
   /// For metadata caching.
   meta_version: AtomicUint,
+
+  /// Keeps track of the number of references.
+  references:   AtomicUint,
 }
 
 struct ObjectData {
@@ -119,6 +121,7 @@ impl ObjectRef {
         symbol_ref:   symbol_ref,
         tag:          tag,
         meta_version: AtomicUint::new(0),
+        references:   AtomicUint::new(1),
 
         data: Mutex::new(ObjectData {
           nuketype: nuketype,
@@ -142,8 +145,11 @@ impl ObjectRef {
   /// Returns a new weak reference to the object that this reference points to.
   ///
   /// The weak reference will not keep the object alive, and so is suitable for
-  /// caches.
+  /// caches. Weak references do, however, contribute to the number of
+  /// references to the object.
   pub fn downgrade(&self) -> WeakObjectRef {
+    self.reference.references.fetch_add(1, SeqCst);
+
     WeakObjectRef {
       reference: self.reference.downgrade()
     }
@@ -179,6 +185,34 @@ impl ObjectRef {
   /// information.
   pub fn meta_version(&self) -> uint {
     self.reference.meta_version.load(SeqCst)
+  }
+
+  /// Returns the number of references to the object, including this one.
+  ///
+  /// If the reference count is 1, you can guarantee that you are the only one
+  /// who could possibly have access to this. `WeakObjectRef`s are counted as
+  /// well, because the count is for the purpose of determining exclusive
+  /// access.
+  pub fn references(&self) -> uint {
+    self.reference.references.load(SeqCst)
+  }
+}
+
+// Implemented in order to keep our own reference count.
+impl Clone for ObjectRef {
+  fn clone(&self) -> ObjectRef {
+    self.reference.references.fetch_add(1, SeqCst);
+
+    ObjectRef {
+      reference: self.reference.clone()
+    }
+  }
+}
+
+// Implemented in order to keep our own reference count.
+impl Drop for ObjectRef {
+  fn drop(&mut self) {
+    self.reference.references.fetch_sub(1, SeqCst);
   }
 }
 
@@ -232,11 +266,23 @@ impl WeakObjectRef {
   ///
   /// Returns `None` if the object is no longer alive.
   pub fn upgrade(&self) -> Option<ObjectRef> {
-    self.reference.upgrade().map(|reference|
+    self.reference.upgrade().map(|reference| {
+      reference.references.fetch_add(1, SeqCst);
+
       ObjectRef {
         reference: reference
       }
-    )
+    })
+  }
+}
+
+impl Drop for WeakObjectRef {
+  fn drop(&mut self) {
+    // Attempts to upgrade in order to decrease the reference count, but if the
+    // object is already dead it doesn't matter of course.
+    self.reference.upgrade().map(|reference|
+      reference.references.fetch_sub(1, SeqCst)
+    );
   }
 }
 
