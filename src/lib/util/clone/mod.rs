@@ -11,7 +11,6 @@
 
 use object::{ObjectRef, Meta};
 use nuketype::{Thing, Execution, Alien, Locals};
-use machine::Machine;
 
 /// Creates a new Thing object from the metadata of the given object.
 pub fn to_thing(from: &ObjectRef) -> ObjectRef {
@@ -25,13 +24,51 @@ pub fn to_thing(from: &ObjectRef) -> ObjectRef {
   Thing::create(meta)
 }
 
-/// Correctly clones `Execution`s *or* `Alien`s.
+/// Correctly clones an `Execution` *or* `Alien`.
 ///
 /// Useful because in Paws-world, they're supposed to behave the same way.
-pub fn stageable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
-  // XXX: This currently clones the receiver too... should it not?
+///
+/// Returns `None` for non-stageables.
+pub fn stageable(from:       &ObjectRef,
+                 locals_sym: &ObjectRef)
+                 -> Option<ObjectRef> {
 
-  match from.lock().try_cast::<Execution>() {
+  stageable_with_details(from, locals_sym).map(|result| result.stageable)
+}
+
+/// The result of `stageable_with_details()`.
+pub struct StageableWithDetailsResult {
+  /// The cloned object.
+  pub stageable:        ObjectRef,
+
+  /// The cloned locals and its metadata version.
+  ///
+  /// Only present if an Execution was cloned (aliens don't have `locals`).
+  pub locals:           Option<(ObjectRef, uint)>,
+
+  /// The nuketype version of the object that was cloned.
+  pub nuketype_version: uint,
+
+  /// The metadata version of the object that was cloned.
+  pub meta_version:     uint
+}
+
+/// Clones an `Execution` or `Alien` with details about the versions of
+/// relevant parts at the time of cloning.
+pub fn stageable_with_details(from:       &ObjectRef,
+                              locals_sym: &ObjectRef)
+                              -> Option<StageableWithDetailsResult> {
+
+  // XXX: This currently clones the receiver too... should it not?
+  //
+  // We lock it first to ensure that the versions are correct. (Version can only
+  // be changed while locked.)
+  let unknown = from.lock();
+
+  let nuketype_version = from.nuketype_version();
+  let meta_version     = from.meta_version();
+
+  match unknown.try_cast::<Execution>() {
 
     Ok(execution) => {
       let     new_execution = box execution.deref().clone();
@@ -39,14 +76,18 @@ pub fn stageable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
 
       execution.unlock();
 
+      let locals_version;
+
       let new_locals = {
 
         let locals_ref = new_meta.members
-                           .lookup_pair(&machine.locals_sym)
+                           .lookup_pair(locals_sym)
                            .expect("Execution is missing locals!");
 
         let locals = locals_ref.lock().try_cast::<Locals>()
                        .ok().expect("locals should be a Locals!");
+
+        locals_version = locals_ref.meta_version();
 
         ObjectRef::store_with_tag(
           box locals.deref().clone(),
@@ -55,17 +96,30 @@ pub fn stageable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
       };
 
       new_meta.members
-        .push_pair_to_child(machine.locals_sym.clone(), new_locals);
+        .push_pair_to_child(locals_sym.clone(), new_locals.clone());
 
-      Some(ObjectRef::store_with_tag(
-             new_execution, new_meta, from.tag()))
+      Some(StageableWithDetailsResult {
+        stageable:        ObjectRef::store_with_tag(
+                            new_execution, new_meta, from.tag()),
+        locals:           Some((new_locals, locals_version)),
+        nuketype_version: nuketype_version,
+        meta_version:     meta_version
+      })
     },
 
     Err(unknown) => match unknown.try_cast::<Alien>() {
 
-      Ok(alien) =>
-        Some(ObjectRef::store_with_tag(
-               box alien.deref().clone(), alien.meta().clone(), from.tag())),
+      Ok(alien) => {
+        Some(StageableWithDetailsResult {
+          stageable:        ObjectRef::store_with_tag(
+                              box alien.deref().clone(),
+                              alien.meta().clone(),
+                              from.tag()),
+          locals:           None,
+          nuketype_version: nuketype_version,
+          meta_version:     meta_version
+        })
+      },
 
       Err(_) =>
         None

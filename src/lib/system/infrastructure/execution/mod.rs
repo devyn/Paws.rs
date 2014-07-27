@@ -30,8 +30,10 @@ pub fn make(machine: &Machine) -> ObjectRef {
 
 pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
-    [ref executionish] =>
-      match clone::stageable(executionish, reactor.machine()) {
+    [ref executionish] => {
+      let locals_sym = reactor.machine().locals_sym.clone();
+
+      match clone::stageable(executionish, &locals_sym) {
 
         Some(clone) => reactor.stage(caller, clone),
 
@@ -39,7 +41,8 @@ pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
           warn!(concat!("tried to branch {}, which is neither",
                         " an execution nor an alien"),
                 executionish)
-      },
+      }
+    },
     _ => fail!("wrong number of arguments")
   }
 }

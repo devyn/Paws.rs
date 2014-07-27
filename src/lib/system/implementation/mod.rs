@@ -9,7 +9,6 @@ use nuketype::{Thing, Alien};
 use machine::{Machine, Reactor};
 
 use util::namespace::NamespaceBuilder;
-use util::clone;
 
 use std::any::AnyMutRefExt;
 
@@ -104,18 +103,21 @@ pub fn stop(reactor: &mut Reactor, _response: ObjectRef) {
 pub fn branch(reactor: &mut Reactor, caller: ObjectRef, args: &[ObjectRef]) {
   match args {
     [ref executionish] => {
-      let clone = match clone::stageable(executionish, reactor.machine()) {
+      let locals_sym = reactor.machine().locals_sym.clone();
 
-        Some(clone) => clone,
+      let clone =
+        match reactor.cache().clone_stageable(executionish, &locals_sym) {
 
-        None => {
-          warn!(concat!("tried to branch {}, which is neither",
-                        " an execution nor an alien"),
-                executionish);
+          Some(clone) => clone,
 
-          return
-        }
-      };
+          None => {
+            warn!(concat!("tried to branch {}, which is neither",
+                          " an execution nor an alien"),
+                  executionish);
+
+            return
+          }
+        };
 
       if &caller == executionish {
         debug!(concat!("branching caller: staging {} (caller) and {} (clone)",

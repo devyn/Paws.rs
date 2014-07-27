@@ -67,19 +67,22 @@ pub struct ObjectRef {
 }
 
 struct ObjectBox {
-  data:         Mutex<ObjectData>,
+  data:             Mutex<ObjectData>,
 
   /// For lockless symbol comparison.
-  symbol_ref:   Option<Arc<String>>,
+  symbol_ref:       Option<Arc<String>>,
 
   /// Allows tagging references, which makes debug output clearer.
-  tag:          Option<Arc<String>>,
+  tag:              Option<Arc<String>>,
 
   /// For metadata caching.
-  meta_version: AtomicUint,
+  meta_version:     AtomicUint,
+
+  /// For nuketype caching.
+  nuketype_version: AtomicUint,
 
   /// Keeps track of the number of references.
-  references:   AtomicUint,
+  references:       AtomicUint,
 }
 
 struct ObjectData {
@@ -123,10 +126,11 @@ impl ObjectRef {
 
     ObjectRef {
       reference: Arc::new(ObjectBox {
-        symbol_ref:   symbol_ref,
-        tag:          tag,
-        meta_version: AtomicUint::new(0),
-        references:   AtomicUint::new(1),
+        symbol_ref:       symbol_ref,
+        tag:              tag,
+        meta_version:     AtomicUint::new(0),
+        nuketype_version: AtomicUint::new(0),
+        references:       AtomicUint::new(1),
 
         data: Mutex::new(ObjectData {
           nuketype: nuketype,
@@ -202,6 +206,15 @@ impl ObjectRef {
   /// information.
   pub fn meta_version(&self) -> uint {
     self.reference.meta_version.load(SeqCst)
+  }
+
+  /// Returns the nuketype version of the object pointed to by this `ObjectRef`.
+  ///
+  /// The nuketype version is automatically incremented whenever the object's
+  /// nuketype data is modified, and can be used for caching nuketype-related
+  /// information.
+  pub fn nuketype_version(&self) -> uint {
+    self.reference.nuketype_version.load(SeqCst)
   }
 
   /// Returns the number of references to the object, including this one.
@@ -370,9 +383,12 @@ impl<'a> ObjectRefGuard<'a> {
 
   /// Get a mutable reference to the guarded object's nuketype data.
   ///
-  /// Unless you intend to change the type of this object, you probably want
-  /// to use `try_cast()` instead.
-  pub fn nuketype_mut(&mut self) -> &mut Nuketype {
+  /// Private because this only really matters if you want to completely change
+  /// the type of the object, which is probably harmful. Everything else is
+  /// covered by `TypedRefGuard`.
+  fn nuketype_mut(&mut self) -> &mut Nuketype {
+    self.object_ref.reference.nuketype_version.fetch_add(1, SeqCst);
+
     // XXX: due to Rust bug
     let nuk_ref: &mut Nuketype = self.guard.deref_mut().nuketype;
     nuk_ref
@@ -428,6 +444,8 @@ impl<'a> ObjectRefGuard<'a> {
 
 /// Allows pre-typechecked guards to be marked with their Nuketypes' types to
 /// remove redundant boilerplate when passing `ObjectRefGuard`s around.
+///
+/// Also the only way to modify a nuketype.
 pub struct TypedRefGuard<'a, T> {
   object_ref_guard: ObjectRefGuard<'a>
 }

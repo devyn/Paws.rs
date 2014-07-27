@@ -11,8 +11,6 @@ use object::{Meta, Params, Cache};
 
 use nuketype::{Thing, Execution, Alien};
 
-use util::clone;
-
 pub use self::mock::MockReactor;
 pub use self::serial::SerialReactor;
 pub use self::parallel::{ReactorPool, ParallelReactor};
@@ -154,8 +152,10 @@ pub fn combine<'a, R: Reactor>(
 
       // Otherwise, we need to check if this receiver is stageable (Execution
       // or Alien) or not.
-      ObjectReceiver(receiver) =>
-        match clone::stageable(&receiver, reactor.machine()) {
+      ObjectReceiver(receiver) => {
+        let locals_sym = reactor.machine().locals_sym.clone();
+
+        match reactor.cache().clone_stageable(&receiver, &locals_sym) {
           Some(clone) => {
             // If it is, we construct a params object `[, caller, subject,
             // message]` and `React` a clone of the receiver with the params
@@ -176,7 +176,8 @@ pub fn combine<'a, R: Reactor>(
             // this receiver as `use_receiver_of`.
             use_receiver_of = receiver;
           }
-        },
+        }
+      },
     }
   }
 }

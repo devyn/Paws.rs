@@ -18,8 +18,6 @@ use nuketype::{Nuketype, Locals};
 use machine::Machine;
 use machine::reactor::{Reactor, Combination};
 
-use util::clone;
-
 use std::io::IoResult;
 use std::sync::Arc;
 
@@ -173,7 +171,9 @@ pub fn stage_receiver(reactor: &mut Reactor, params: Params) {
          params.subject, params.subject.references());
 
   if params.subject.references() > 1 {
-    match clone::stageable(&params.subject, reactor.machine()) {
+    let locals_sym = reactor.machine().locals_sym.clone();
+
+    match reactor.cache().clone_stageable(&params.subject, &locals_sym) {
       Some(clone) => {
         debug!("stage_receiver: {} cloned to {} <-- {}",
                params.subject, clone, params.message);

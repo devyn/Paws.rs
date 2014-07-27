@@ -2,20 +2,30 @@
 
 use object::{mod, ObjectRef, WeakObjectRef};
 
+use util::clone;
+
 use std::sync::Arc;
 use std::collections::LruCache;
 
 #[cfg(test)]
 mod tests;
 
-static SYM_LOOKUP_CACHE_SIZE: uint = 64;
-static RECEIVER_CACHE_SIZE: uint = 64;
+static SYM_LOOKUP_CACHE_SIZE:      uint = 64;
+static RECEIVER_CACHE_SIZE:        uint = 64;
+static CLONE_STAGEABLE_CACHE_SIZE: uint = 64;
 
 /// Provides caching for various common operations on Paws objects.
 pub struct Cache {
-  sym_lookup_cache: LruCache<SymLookupCacheKey, SymLookupCacheEntry>,
-  receiver_cache:   Option<LruCache<ReceiverCacheKey, ReceiverCacheEntry>>,
-  stats:            CacheStats
+  stats: CacheStats,
+
+  sym_lookup_cache:
+    LruCache<SymLookupCacheKey, SymLookupCacheEntry>,
+
+  receiver_cache:
+    Option<LruCache<ReceiverCacheKey, ReceiverCacheEntry>>,
+
+  clone_stageable_cache:
+    Option<LruCache<CloneStageableCacheKey, CloneStageableCacheEntry>>,
 }
 
 /// Provides performance-related information for a `Cache`.
@@ -26,15 +36,23 @@ pub struct CacheStats {
 
   /// The number of times `sym_lookup()` has successfully found a match in the
   /// cache since it was created.
-  pub sym_lookup_hits:   u64,
+  pub sym_lookup_hits: u64,
 
   /// The number of times `receiver()` has failed to find a match in the cache
   /// since it was created.
-  pub receiver_misses:   u64,
+  pub receiver_misses: u64,
 
   /// The number of times `receiver()` has successfully found a match in the
   /// cache since it was created.
-  pub receiver_hits:     u64
+  pub receiver_hits: u64,
+
+  /// The number of times `clone_stageable()` has failed to find a match in the
+  /// cache since it was created.
+  pub clone_stageable_misses: u64,
+
+  /// The number of times `clone_stageable()` has successfully found a match in
+  /// the cache since it was created.
+  pub clone_stageable_hits: u64,
 }
 
 #[allow(raw_pointer_deriving)]
@@ -55,33 +73,33 @@ struct ReceiverCacheEntry {
   receiver: object::Receiver
 }
 
+type CloneStageableCacheKey = ObjectRef;
+
+type CloneStageableCacheEntry = clone::StageableWithDetailsResult;
+
 impl Cache {
   /// Construct a new cache.
   fn new(parallel: bool) -> Cache {
     // This is clever. Maybe too clever/ugly?
-    let if_parallel =
-      if parallel {
-        fn some<T>(f: || -> T) -> Option<T> {
-          Some(f())
-        }
-        some
-      } else {
-        fn none<T>(_: || -> T) -> Option<T> {
-          None
-        }
-        none
-      };
+    let parallel = if parallel { Some(()) } else { None };
 
     Cache {
-      sym_lookup_cache: LruCache::new(SYM_LOOKUP_CACHE_SIZE),
+      sym_lookup_cache:
+        LruCache::new(SYM_LOOKUP_CACHE_SIZE),
 
-      receiver_cache:   if_parallel(|| LruCache::new(RECEIVER_CACHE_SIZE)),
+      receiver_cache:
+        parallel.clone().map(|_| LruCache::new(RECEIVER_CACHE_SIZE)),
+
+      clone_stageable_cache:
+        parallel.clone().map(|_| LruCache::new(CLONE_STAGEABLE_CACHE_SIZE)),
 
       stats: CacheStats {
-        sym_lookup_misses: 0,
-        sym_lookup_hits:   0,
-        receiver_misses:   0,
-        receiver_hits:     0
+        sym_lookup_misses:      0,
+        sym_lookup_hits:        0,
+        receiver_misses:        0,
+        receiver_hits:          0,
+        clone_stageable_misses: 0,
+        clone_stageable_hits:   0
       }
     }
   }
@@ -130,8 +148,9 @@ impl Cache {
 
           self.stats.sym_lookup_hits += 1;
 
-          debug!("sym_lookup  hit: ({} hits / {} misses)",
-            self.stats.sym_lookup_hits, self.stats.sym_lookup_misses);
+          debug!("sym_lookup  hit: ({} hits / {} misses) {}, {}",
+            self.stats.sym_lookup_hits, self.stats.sym_lookup_misses,
+            container, *symbol);
 
           // Return the associated value. The WeakObjectRef should always be
           // upgradeable unless something has gone horribly wrong, because the
@@ -149,14 +168,16 @@ impl Cache {
     let mut pair_version: Option<uint> = None;
 
     let mut result: Option<(ObjectRef, ObjectRef)> = None;
-
-    self.stats.sym_lookup_misses += 1;
-
-    debug!("sym_lookup miss: ({} hits / {} misses)",
-      self.stats.sym_lookup_hits, self.stats.sym_lookup_misses);
     
     {
       let SymLookupCacheKey(ref container_ref, sym) = key;
+
+      self.stats.sym_lookup_misses += 1;
+
+      debug!("sym_lookup miss: ({} hits / {} misses) {}, {}",
+        self.stats.sym_lookup_hits, self.stats.sym_lookup_misses,
+        container_ref, *symbol);
+
       let container = container_ref.lock();
       let members   = &container.meta().members;
 
@@ -256,8 +277,8 @@ impl Cache {
       Some(entry) if entry.version == object.meta_version() => {
         self.stats.receiver_hits += 1;
 
-        debug!("receiver  hit: ({} hits / {} misses)",
-          self.stats.receiver_hits, self.stats.receiver_misses);
+        debug!("receiver  hit: ({} hits / {} misses) {}",
+          self.stats.receiver_hits, self.stats.receiver_misses, object);
 
         return entry.receiver.clone()
       },
@@ -269,8 +290,8 @@ impl Cache {
 
     self.stats.receiver_misses += 1;
 
-    debug!("receiver miss: ({} hits / {} misses)",
-      self.stats.receiver_hits, self.stats.receiver_misses);
+    debug!("receiver miss: ({} hits / {} misses) {}",
+      self.stats.receiver_hits, self.stats.receiver_misses, object);
 
     let entry = {
       // This is written this way to ensure we get the `meta_version()`
@@ -289,5 +310,71 @@ impl Cache {
     receiver_cache.put(object, entry);
 
     receiver
+  }
+
+  /// Clones a stageable object (an `Execution` or `Alien`) with caching of the
+  /// result in order to avoid locking.
+  ///
+  /// Returns `None` if the object is not stageable. This result is not cached.
+  ///
+  /// This optimization is disabled for serial reactors. The effect is then
+  /// equivalent to that of calling `util::clone::stageable()`.
+  pub fn clone_stageable(&mut self,
+                         object:     &ObjectRef,
+                         locals_sym: &ObjectRef)
+                         -> Option<ObjectRef> {
+    // Only use cache if enabled.
+    let clone_stageable_cache =
+      match self.clone_stageable_cache {
+        Some(ref mut c) => c,
+        None =>
+          return clone::stageable(object, locals_sym)
+      };
+
+    // Try to get a hit.
+    match clone_stageable_cache.get(object) {
+      Some(entry) if entry.nuketype_version == object.nuketype_version() &&
+                     entry.meta_version     == object.meta_version()     &&
+                     entry.locals.as_ref().map(|&(ref locals, version)|
+                       version == locals.meta_version()).unwrap_or(true) => {
+
+        self.stats.clone_stageable_hits += 1;
+
+        debug!("clone_stageable  hit: ({} hits / {} misses) {}",
+          self.stats.clone_stageable_hits,
+          self.stats.clone_stageable_misses,
+          object);
+
+        return clone::stageable(&entry.stageable, locals_sym)
+      },
+      _ => ()
+    }
+
+    // We missed, either because it was not found in the cache, or the cache
+    // was invalidated because either of the versions were different. But we
+    // only count it as a miss if it is actually stageable.
+
+    match clone::stageable_with_details(object, locals_sym) {
+      Some(result) => {
+        // Stageable. Clone again and then cache this.
+        self.stats.clone_stageable_misses += 1;
+
+        debug!("clone_stageable miss: ({} hits / {} misses) {}",
+          self.stats.clone_stageable_hits,
+          self.stats.clone_stageable_misses,
+          object);
+
+        let clone = clone::stageable(&result.stageable, locals_sym).unwrap();
+
+        clone_stageable_cache.put(object.clone(), result);
+
+        Some(clone)
+      },
+      None => {
+        // Not stageable. Remove from cache so we don't have to check again.
+        clone_stageable_cache.pop(object);
+        None
+      }
+    }
   }
 }
