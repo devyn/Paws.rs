@@ -9,11 +9,9 @@
 //!     clone::to_thing(...);
 //!     clone::stageable(...);
 
-use object::{ObjectRef, Meta, Tag};
+use object::{ObjectRef, Meta};
 use nuketype::{Thing, Execution, Alien, Locals};
 use machine::Machine;
-
-use std::sync::Arc;
 
 /// Creates a new Thing object from the metadata of the given object.
 pub fn to_thing(from: &ObjectRef) -> ObjectRef {
@@ -65,12 +63,9 @@ pub fn stageable(from: &ObjectRef, machine: &Machine) -> Option<ObjectRef> {
 
     Err(unknown) => match unknown.try_cast::<Alien>() {
 
-      Ok(alien) => {
-        let tag: Option<&Arc<String>> = from.tag();
-        debug!("clone::stageable: {}", tag.to_tag().map(|s|(*s).clone()));
+      Ok(alien) =>
         Some(ObjectRef::store_with_tag(
-               box alien.deref().clone(), alien.meta().clone(), tag))
-      },
+               box alien.deref().clone(), alien.meta().clone(), from.tag())),
 
       Err(_) =>
         None
