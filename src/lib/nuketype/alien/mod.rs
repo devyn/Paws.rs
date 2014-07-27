@@ -214,14 +214,14 @@ impl<'a> AnyRefExt<'a> for &'a Data {
     self.as_any().is::<T>()
   }
 
-  fn as_ref<T:'static>(self) -> Option<&'a T> {
-    self.as_any().as_ref::<T>()
+  fn downcast_ref<T:'static>(self) -> Option<&'a T> {
+    self.as_any().downcast_ref::<T>()
   }
 }
 
 impl<'a> AnyMutRefExt<'a> for &'a mut Data {
-  fn as_mut<T:'static>(self) -> Option<&'a mut T> {
-    self.as_any_mut().as_mut::<T>()
+  fn downcast_mut<T:'static>(self) -> Option<&'a mut T> {
+    self.as_any_mut().downcast_mut::<T>()
   }
 }
 
@@ -290,7 +290,7 @@ fn call_pattern_alien_routine<'a>(
 
   let (caller, routine, args) = {
     // Do everything we need to do to data in here, so we can drop alien.
-    let data = alien.data.as_mut::<CallPatternData>().unwrap();
+    let data = alien.data.downcast_mut::<CallPatternData>().unwrap();
 
     // Don't do anything if we're complete.
     if data.complete { return }
@@ -365,7 +365,7 @@ fn oneshot_alien_routine<'a>(
                           response:  ObjectRef) {
 
   let routine = {
-    let data = alien.data.as_mut::<OneshotData>().unwrap();
+    let data = alien.data.downcast_mut::<OneshotData>().unwrap();
 
     if data.complete {
       return;
@@ -398,7 +398,7 @@ fn native_receiver_alien_routine<'a>(
                                  response:  ObjectRef) {
 
   let NativeReceiverData(receiver) =
-    *alien.data.as_mut::<NativeReceiverData>().unwrap();
+    *alien.data.downcast_mut::<NativeReceiverData>().unwrap();
 
   drop(alien);
 

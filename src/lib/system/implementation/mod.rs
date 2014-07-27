@@ -60,7 +60,7 @@ pub fn void(_machine: &Machine) -> ObjectRef {
 
     let caller: ObjectRef;
 
-    match alien.data.as_mut::<VoidCaller>() {
+    match alien.data.downcast_mut::<VoidCaller>() {
       Some(&VoidCaller(Some(ref stored_caller))) => {
         // We've already got the caller and we need to use it.
         caller = stored_caller.clone();

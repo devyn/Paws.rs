@@ -202,7 +202,7 @@ fn rule_routine<'a>(
 
   let caller;
   {
-    let data = alien.data.as_mut::<RuleAlienData>().unwrap();
+    let data = alien.data.downcast_mut::<RuleAlienData>().unwrap();
 
     let add_caller_locals_to = |caller: &ObjectRef, dest: &ObjectRef| {
       let caller_locals_members = {
@@ -294,7 +294,7 @@ fn set_rule_result_routine<'a>(
                             _reactor:  &mut Reactor,
                             _response: ObjectRef) {
 
-  let data = alien.data.as_mut::<SetRuleResultAlienData>().unwrap();
+  let data = alien.data.downcast_mut::<SetRuleResultAlienData>().unwrap();
 
   let mut rules = data.suite.rules.lock();
 

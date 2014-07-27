@@ -31,8 +31,8 @@ pub trait Nuketype: Any {
   /// Converts an Object trait object to an Any trait object.
   ///
   /// You probably don't need to do this, as `AnyRefExt` is implemented for all
-  /// `Object` references, which provides generic `is<T>()` and `as_ref<T>()`
-  /// directly. It only exists in order to implement it.
+  /// `Object` references, which provides generic `is<T>()` and
+  /// `downcast_ref<T>()` directly. It only exists in order to implement it.
   ///
   /// Additionally, `TypedRefGuard` exists, which is easier to use from an
   /// `ObjectRef`.
@@ -43,8 +43,8 @@ pub trait Nuketype: Any {
   /// Same as `as_any()` but for a mutable ref.
   ///
   /// You probably don't need to do this, as `AnyMutRefExt` is implemented for
-  /// all `Object` references, which provides generic `as_mut<T>()` directly. It
-  /// only exists in order to implement it.
+  /// all `Object` references, which provides generic `downcast_mut<T>()`
+  /// directly. It only exists in order to implement it.
   ///
   /// Additionally, `TypedRefGuard` exists, which is easier to use from an
   /// `ObjectRef`.
@@ -58,13 +58,13 @@ impl<'a> AnyRefExt<'a> for &'a Nuketype {
     self.as_any().is::<T>()
   }
 
-  fn as_ref<T:'static>(self) -> Option<&'a T> {
-    self.as_any().as_ref::<T>()
+  fn downcast_ref<T:'static>(self) -> Option<&'a T> {
+    self.as_any().downcast_ref::<T>()
   }
 }
 
 impl<'a> AnyMutRefExt<'a> for &'a mut Nuketype {
-  fn as_mut<T:'static>(self) -> Option<&'a mut T> {
-    self.as_any_mut().as_mut::<T>()
+  fn downcast_mut<T:'static>(self) -> Option<&'a mut T> {
+    self.as_any_mut().downcast_mut::<T>()
   }
 }
