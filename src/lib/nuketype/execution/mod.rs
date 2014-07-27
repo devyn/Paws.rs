@@ -156,20 +156,37 @@ impl Nuketype for Execution {
   }
 }
 
-/// A receiver that first ensures the subject is stageable, clones it, and then
-/// enqueues the clone with the message.
+/// A receiver that ensures uniqueness of the subject by cloning if necessary,
+/// and then stages with the message.
+///
+/// If cloning is necessary, will only clone stageable objects: non-stageables
+/// will not make it to the reactor.
+///
+/// Uniqueness is checked via the reference count of the subject.
+///
+/// # Warning
+///
+/// This copy-on-write-like optimization may break Nucleus spec at the moment.
+/// Not sure.
 pub fn stage_receiver(reactor: &mut Reactor, params: Params) {
-  match clone::stageable(&params.subject, reactor.machine()) {
-    Some(clone) => {
-      debug!("stage_receiver: {} cloned to {} <-- {}",
-             params.subject, clone, params.message);
+  debug!("stage_receiver: subject {} references = {}",
+         params.subject, params.subject.references());
 
-      reactor.stage(clone, params.message.clone());
-    },
+  if params.subject.references() > 1 {
+    match clone::stageable(&params.subject, reactor.machine()) {
+      Some(clone) => {
+        debug!("stage_receiver: {} cloned to {} <-- {}",
+               params.subject, clone, params.message);
 
-    None =>
-      warn!(concat!("stage_receiver failed: {} <-- {}, subject is neither an",
-                    " execution nor an alien"),
-            params.subject, params.message)
+        reactor.stage(clone, params.message.clone());
+      },
+
+      None =>
+        warn!(concat!("stage_receiver failed: {} <-- {}, subject is neither an",
+                      " execution nor an alien"),
+              params.subject, params.message)
+    }
+  } else {
+    reactor.stage(params.subject, params.message);
   }
 }
