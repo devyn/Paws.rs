@@ -31,7 +31,7 @@ mod simple {
 
     match response.lock().try_cast::<Symbol>() {
       Ok(symbol) =>
-        alien.data.as_mut::<String>().unwrap()
+        alien.data.downcast_mut::<String>().unwrap()
           .push_str(symbol.deref().name().as_slice()),
       Err(_) => ()
     }
@@ -63,7 +63,7 @@ fn simple_alien() {
   let alien = alien_ref.lock().try_cast::<Alien>()
                 .ok().expect("alien is not an Alien!");
 
-  assert!(alien.deref().data.as_ref::<String>()
+  assert!(alien.deref().data.downcast_ref::<String>()
           .unwrap().as_slice() == "Hello, world!");
 }
 

@@ -405,13 +405,13 @@ impl<'a, T> TypedRefGuard<'a, T> {
 
 impl<'a, T:'static> Deref<T> for TypedRefGuard<'a, T> {
   fn deref<'a>(&'a self) -> &'a T {
-    self.object_ref_guard.nuketype().as_ref::<T>().unwrap()
+    self.object_ref_guard.nuketype().downcast_ref::<T>().unwrap()
   }
 }
 
 impl<'a, T:'static> DerefMut<T> for TypedRefGuard<'a, T> {
   fn deref_mut<'a>(&'a mut self) -> &'a mut T {
-    self.object_ref_guard.nuketype_mut().as_mut::<T>().unwrap()
+    self.object_ref_guard.nuketype_mut().downcast_mut::<T>().unwrap()
   }
 }
 
