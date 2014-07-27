@@ -307,9 +307,8 @@ impl<'a> ObjectRefGuard<'a> {
 
   /// Get a mutable reference to the guarded object's nuketype data.
   ///
-  /// Unless you intend to change the type of this object, you probably want
-  /// to use `try_cast()` instead.
-  pub fn nuketype_mut(&mut self) -> &mut Nuketype {
+  /// Private because modifying untyped nuketype is baaad, m'kay?
+  fn nuketype_mut(&mut self) -> &mut Nuketype {
     // XXX: due to Rust bug
     let nuk_ref: &mut Nuketype = self.guard.deref_mut().nuketype;
     nuk_ref
@@ -365,6 +364,10 @@ impl<'a> ObjectRefGuard<'a> {
 
 /// Allows pre-typechecked guards to be marked with their Nuketypes' types to
 /// remove redundant boilerplate when passing `ObjectRefGuard`s around.
+///
+/// This is also the only way to modify a nuketype, as otherwise you could
+/// cause an object to become a different nuketype, which I'm fairly certain
+/// would be a Bad Thing™.
 pub struct TypedRefGuard<'a, T> {
   object_ref_guard: ObjectRefGuard<'a>
 }
