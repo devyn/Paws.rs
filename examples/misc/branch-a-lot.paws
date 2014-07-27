@@ -1,0 +1,17 @@
+implementation void[] "This causes 8192 'hi' messages to be printed.";
+
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+implementation branch[] [];
+
+implementation console print "hi"

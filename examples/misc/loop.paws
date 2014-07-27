@@ -1,0 +1,91 @@
+implementation void[]
+--- "First, we store our routine as `looper`.";
+
+infrastructure execution stage[]
+  [infrastructure affix[] [locals]]
+  [infrastructure empty[]];
+
+infrastructure execution stage[] [infrastructure set[]
+  [infrastructure get[] [locals] [infrastructure length[] [locals]]]
+
+  1] looper;
+
+infrastructure execution stage[] [infrastructure set[]
+  [infrastructure get[] [locals] [infrastructure length[] [locals]]]
+
+  2] { #exe stage[] [#exe branch[] [print]] "Loop called!";
+       loop[] };
+
+implementation void[]
+--- "Next, we create a Thing to become our template for the pair objects we're
+     going to set up on `looper`'s locals.";
+
+infrastructure execution stage[]
+  [infrastructure affix[] [locals]]
+  [infrastructure empty[]];
+
+infrastructure execution stage[] [infrastructure set[]
+  [infrastructure get[] [locals] [infrastructure length[] [locals]]]
+
+  1] pair;
+
+infrastructure execution stage[] [infrastructure set[]
+  [infrastructure get[] [locals] [infrastructure length[] [locals]]]
+
+  2] [infrastructure empty[]];
+
+implementation void[]
+--- "We set (loop => [looper]) on `looper`'s locals.";
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+  
+  1] loop;
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+  
+  2] [looper];
+
+infrastructure execution stage[]
+  [infrastructure affix[] [infrastructure find[] [looper] locals]]
+  [infrastructure clone[] [pair]];
+
+implementation void[]
+--- "We also set (#exe => [infrastructure execution])...";
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+
+  1] #exe;
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+
+  2] [infrastructure execution];
+
+infrastructure execution stage[]
+  [infrastructure affix[] [infrastructure find[] [looper] locals]]
+  [infrastructure clone[] [pair]];
+
+implementation void[]
+--- "And, finally, (print => [implementation console print]).";
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+
+  1] print;
+
+infrastructure execution stage[] [infrastructure set[]
+  [pair]
+
+  2] [implementation console print];
+
+infrastructure execution stage[]
+  [infrastructure affix[] [infrastructure find[] [looper] locals]]
+  [infrastructure clone[] [pair]];
+
+implementation void[]
+--- "And then call our loop!";
+
+looper[]

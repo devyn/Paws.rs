@@ -1,0 +1,23 @@
+specification rule[] "combination of the 'infrastructure' key against the default-receiver will result" {
+   infrastructure;
+   
+   pass[];
+} eventually { fail[] };
+
+specification rule[] "combination of a non-existent key against the default-receiver will not result" {
+   jabberwocky;
+   
+   fail[];
+} eventually { pass[] };
+
+specification rule[] "combination of a known `label`-y key with the infrastructure-receiver will result" {
+   infrastructure empty;
+   
+   pass[];
+} eventually { fail[] };
+
+specification rule[] "result of combining a known key against infrastructure results when combined" {
+   infrastructure empty[];
+   
+   pass[];
+} eventually { fail[] };
