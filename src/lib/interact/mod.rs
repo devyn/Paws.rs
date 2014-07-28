@@ -83,7 +83,7 @@ pub fn start_with(    machine:      Machine,
         Ok(execution) => {
           template = ObjectRef::store_with_tag(
             box execution, template.lock().meta().clone(),
-            format!("interact {:04u}", line));
+            format!("interact {:u}", line));
 
           reactor_tx.send(Some(template.clone()));
           reactor_tx.send(None); // wait for the reactor to be ready
@@ -136,7 +136,7 @@ fn parse(machine:  &Machine,
          line_str: &str)
          -> Result<Execution, String> {
 
-  cpaws::parse_nodes(line_str, (format!("<interact {:04u}>", line)).as_slice())
+  cpaws::parse_nodes(line_str, (format!("<interact {:u}>", line)).as_slice())
     .map(|nodes| {
       let Script(mut instructions) =
         cpaws::build_script(machine, nodes.as_slice());
