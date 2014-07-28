@@ -22,6 +22,8 @@ use paws::nuketype::Execution;
 
 use paws::specification::Suite;
 
+use interact = paws::interact::start;
+
 #[start]
 fn start(argc: int, argv: *const *const u8) -> int {
   // Make sure we use the native (not green thread) runtime
@@ -40,6 +42,9 @@ fn help() {
     file, that will be loaded instead.
 
   {bold}Options:{reset}
+
+    {cyan}-i, --interact{reset}
+      Starts a Paws.rs read-eval-print loop. All other options will be ignored.
 
     {cyan}--[no-]stall{reset}
       The default mode is {cyan}--stall{reset}, in which Paws.rs continues to run in an
@@ -84,6 +89,8 @@ fn main() {
   let opts = [
          optflag("h",     "help", ""),
 
+         optflag("i", "interact", ""),
+
           optopt("R", "reactors", "", ""),
 
     optflagmulti("",  "no-stall", ""),
@@ -103,6 +110,12 @@ fn main() {
   // Flag: -h, --help
   if matches.opt_present("h") {
     help();
+    return
+  }
+
+  // Flag: -i, --interact
+  if matches.opt_present("i") {
+    interact();
     return
   }
 

@@ -33,5 +33,6 @@ pub mod script;
 pub mod machine;
 pub mod system;
 pub mod specification;
+pub mod interact;
 
 mod util;
