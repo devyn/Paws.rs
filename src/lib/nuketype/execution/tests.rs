@@ -3,6 +3,7 @@ use super::*;
 use script::*;
 
 use machine::Machine;
+use machine::reactor::{From, FromLocals, FromSelf};
 use nuketype::Thing;
 
 #[test]
@@ -24,10 +25,10 @@ fn advance_push_and_combine() {
 
   let empty = Thing::empty();
 
-  let combination = execution.advance(&execution_ref, empty).unwrap();
+  let combination = execution.advance(empty).unwrap();
 
-  assert!(combination.subject == Some(symbol0));
-  assert!(combination.message == symbol1);
+  assert!(combination.subject == From(symbol0));
+  assert!(combination.message == From(symbol1));
 }
 
 #[test]
@@ -47,10 +48,10 @@ fn advance_combine_locals_and_self() {
   let empty = Thing::empty();
 
   let combination =
-    execution.advance(&execution_ref, empty).unwrap();
+    execution.advance(empty).unwrap();
 
-  assert!(combination.subject.is_none());
-  assert!(combination.message == execution_ref);
+  assert!(combination.subject == FromLocals);
+  assert!(combination.message == FromSelf);
 }
 
 #[test]
@@ -79,33 +80,28 @@ fn advance_elevated_push() {
                         .ok().unwrap();
 
   // Pristine
-  // {.dummy (red)} advance(dummy) => Combination(None <- dummy)
+  // {.dummy (red)} advance(dummy) => Combination(Locals <- dummy)
   let combination0 =
-    execution.advance(&execution_ref, dummy.clone()).unwrap();
+    execution.advance(dummy.clone()).unwrap();
 
-  assert!(combination0.subject.is_none());
-  assert!(combination0.message == dummy);
+  assert!(combination0.subject == FromLocals);
+  assert!(combination0.message == From(dummy));
 
-  // {dummy .(red)} advance(green) => Combination(None <- red)
+  // {dummy .(red)} advance(green) => Combination(Locals <- red)
   // green {dummy (red.)}
   let combination1 =
-    execution.advance(&execution_ref, green.clone()).unwrap();
+    execution.advance(green.clone()).unwrap();
 
-  assert!(combination1.subject.is_none());
-  assert!(combination1.message == red);
+  assert!(combination1.subject == FromLocals);
+  assert!(combination1.message == From(red));
 
   // green {dummy (red.)} advance(blue) => Combination(green <- blue)
   // {dummy (red)=blue.}
   let combination2 =
-    execution.advance(&execution_ref, blue.clone()).unwrap();
+    execution.advance(blue.clone()).unwrap();
 
-  match combination2.subject {
-    Some(ref object_ref) =>
-      assert!(object_ref == &green),
-    None => fail!("combination2.subject is None")
-  }
-
-  assert!(combination2.message == blue);
+  assert!(combination2.subject == From(green));
+  assert!(combination2.message == From(blue));
 }
 
 #[test]

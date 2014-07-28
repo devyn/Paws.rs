@@ -17,6 +17,7 @@ use nuketype::{Nuketype, Locals};
 
 use machine::Machine;
 use machine::reactor::{Reactor, Combination};
+use machine::reactor::{Combinable, FromSelf, FromLocals, From};
 
 use util::clone;
 
@@ -36,7 +37,7 @@ mod tests;
 pub struct Execution {
   root:     Arc<Script>,
   pc:       uint,
-  stack:    Vec<Option<ObjectRef>>
+  stack:    Vec<Combinable>
 }
 
 impl Execution {
@@ -67,26 +68,14 @@ impl Execution {
     &*self.root
   }
 
-  /// Advances the Execution, moving its program counter forward and evaluating
-  /// instructions, ending with either the execution of a Combine instruction or
-  /// completion.
-  ///
-  /// # Arguments
-  ///
-  /// - **machine**: The machine context in which this operation is running.
-  ///
-  /// - **self_ref**: The reference to this Execution. Used for interpreting an
-  /// empty expression; `[]` results in a reference to this Execution.
-  ///
-  /// - **response**: The object this Execution is being sent.
-  pub fn advance(&mut self,
-                 self_ref: &ObjectRef,
-                 response: ObjectRef)
-                 -> Option<Combination> {
+  /// Advances the Execution, first pushing `response` onto the stack, moving
+  /// its program counter forward and evaluating instructions, ending with
+  /// either the execution of a Combine instruction or completion.
+  pub fn advance(&mut self, response: ObjectRef) -> Option<Combination> {
     let Script(ref instructions) = *self.root;
 
     if self.pc < instructions.len() {
-      self.stack.push(Some(response));
+      self.stack.push(From(response));
     }
 
     while self.pc < instructions.len() {
@@ -94,17 +83,17 @@ impl Execution {
 
       self.pc += 1;
 
-      debug!("advance {} {} (stack: {})", self_ref, instruction, self.stack);
+      debug!("advance: {} on (stack: {})", instruction, self.stack);
 
       match *instruction {
         PushLocals =>
-          self.stack.push(None),
+          self.stack.push(FromLocals),
 
         PushSelf =>
-          self.stack.push(Some(self_ref.clone())),
+          self.stack.push(FromSelf),
 
         Push(ref object) =>
-          self.stack.push(Some(object.clone())),
+          self.stack.push(From(object.clone())),
 
         Combine => {
           let message = self.stack.pop().expect("stack too small");
@@ -112,7 +101,7 @@ impl Execution {
 
           return Some(Combination {
             subject: subject,
-            message: message.expect("PushLocals result not allowed as message")
+            message: message
           })
         },
 
@@ -129,30 +118,8 @@ impl Nuketype for Execution {
   fn fmt_paws(&self, writer: &mut Writer) -> IoResult<()> {
     let Script(ref instructions) = *self.root;
 
-    try!(write!(writer, "Execution {{ pc: {} => {}, stack: [",
-      self.pc, instructions[self.pc]));
-
-    let mut stack_iter = self.stack.iter().peekable();
-
-    loop {
-      match stack_iter.next() {
-        Some(&Some(ref object_ref)) =>
-          try!(object_ref.lock().nuketype().fmt_paws(writer)),
-
-        Some(&None) =>
-          try!(write!(writer, "NoObject")),
-
-        None => break
-      }
-
-      if !stack_iter.is_empty() {
-        try!(write!(writer, ", "));
-      }
-    }
-
-    try!(write!(writer, "] }}"));
-
-    Ok(())
+    write!(writer, "Execution {{ pc: {} => {}, stack: {} }}",
+      self.pc, instructions[self.pc], self.stack)
   }
 }
 

@@ -5,7 +5,7 @@
 
 use machine::Machine;
 
-use object::{ObjectRef, ObjectRefGuard};
+use object::ObjectRef;
 use object::{ObjectReceiver, NativeReceiver};
 use object::{Meta, Params, Cache};
 
@@ -60,17 +60,27 @@ pub trait Reactor {
   fn cache(&mut self) -> &mut Cache;
 }
 
+/// Describes the different kinds of arguments available for combination.
+#[deriving(Clone, PartialEq, Eq, Show)]
+pub enum Combinable {
+  /// Combine with the locals of the caller.
+  FromLocals,
+
+  /// Combine with the caller.
+  FromSelf,
+
+  /// Combine with a specific object by reference.
+  From(ObjectRef)
+}
+
 /// Describes a Combination of a `message` against a `subject`.
 #[deriving(Clone, PartialEq, Eq, Show)]
 pub struct Combination {
   /// The left hand side, what the `message` is combined *against*.
-  ///
-  /// If `None`, the Combination shall be against the calling Execution's
-  /// locals.
-  pub subject: Option<ObjectRef>,
+  pub subject: Combinable,
 
   /// The right hand side, what the `subject` is combined *with*.
-  pub message: ObjectRef
+  pub message: Combinable
 }
 
 /// Implements the combination algorithm, finding the appropriate receiver and
@@ -105,36 +115,30 @@ pub struct Combination {
 /// > **Rationale:** The recursive nature of this process allows object-system
 /// > designers to wrap their receiver(s) in metadata, or otherwise abstract
 /// > them away.
-pub fn combine<'a, R: Reactor>(
+pub fn combine<R: Reactor>(
                reactor:     &mut R,
-               caller:      ObjectRefGuard<'a>,
+               caller:      ObjectRef,
                combination: Combination) {
 
-  // Get the actual subject and message, interpreting a None subject in the
-  // combination provided as "locals".
-  let (subject, message) = match combination {
-    Combination { subject: Some(subject),
-                  message: message } =>
-      (subject, message),
+  let locals_sym = reactor.machine().locals_sym.symbol_ref().unwrap().clone();
 
-    Combination { subject: None,
-                  message: message } => {
+  // Get the actual subject and message, interpreting the Combinables.
+  let (subject, message) = {
+    let map = |combinable: Combinable|
+      match combinable {
+        FromLocals =>
+          reactor.cache().sym_lookup(caller.clone(), locals_sym.clone())
+            .expect("Execution is missing locals!"),
 
-      let members = &caller.meta().members;
+        FromSelf =>
+          caller.clone(),
 
-      // Find the caller's locals and make that the subject.
-      //
-      // If we can't find the locals, immediately give up -- we can't continue,
-      // since the Execution is obviously totally fucked up.
-      match members.lookup_pair(&reactor.machine().locals_sym) {
-        Some(locals) => (locals, message),
-        None         => fail!("Execution is missing locals!")
-      }
-    }
+        From(object) =>
+          object
+      };
+
+    (map(combination.subject), map(combination.message))
   };
-
-  // We no longer need to look at any of the caller's properties.
-  let caller = caller.unlock().clone();
 
   // Perform the receiver-finding algorithm, using `use_receiver_of` to
   // iterate through until we find the receiver we want to use.
@@ -202,10 +206,10 @@ pub fn realize<R: Reactor>(
       debug!("realize execution {} \t<-- {}",
         execution_ref, response_ref);
 
-      match execution.advance(&execution_ref, response_ref) {
+      match execution.advance(response_ref) {
         Some(combination) =>
           // Calls the receiver and all that jazz.
-          combine(reactor, execution.into_untyped(), combination),
+          combine(reactor, execution.unlock().clone(), combination),
 
         None =>
           // This execution is already complete, so we can't do anything.

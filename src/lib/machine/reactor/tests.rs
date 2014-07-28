@@ -24,9 +24,9 @@ fn combine_via_direct_default_receiver() {
   // This might seem a little unclear, but effectively what we're doing here is
   // combining the caller itself with a target message. Could be a real-world
   // scenario; I don't know.
-  combine(&mut reactor, caller_ref.lock(), Combination {
-    subject: Some(caller_ref.clone()),
-    message: message_ref.clone()
+  combine(&mut reactor, caller_ref.clone(), Combination {
+    subject: From(caller_ref.clone()),
+    message: From(message_ref.clone())
   });
 
   match reactor.stagings.remove(0) {
@@ -65,9 +65,9 @@ fn combine_via_indirect_default_receiver() {
       key_ref.clone(), value_ref.clone());
   }
 
-  combine(&mut reactor, caller_ref.lock(), Combination {
-    subject: Some(caller_ref.clone()),
-    message: key_ref
+  combine(&mut reactor, caller_ref.clone(), Combination {
+    subject: From(caller_ref.clone()),
+    message: From(key_ref)
   });
 
   assert!(reactor.stagings.shift() == Some((caller_ref, value_ref)));
@@ -107,9 +107,9 @@ fn combine_via_executionish_receiver() {
   for receiver in [execution_ref, alien_ref].iter() {
     other_ref.lock().meta_mut().receiver = ObjectReceiver(receiver.clone());
 
-    combine(&mut reactor, caller_ref.lock(), Combination {
-      subject: Some(other_ref.clone()),
-      message: message_ref.clone()
+    combine(&mut reactor, caller_ref.clone(), Combination {
+      subject: From(other_ref.clone()),
+      message: From(message_ref.clone())
     });
 
     match reactor.stagings.remove(0) {
@@ -176,9 +176,9 @@ fn combine_with_and_lookup_on_implicit_locals() {
       key_ref.clone(), value_ref.clone());
   }
 
-  combine(&mut reactor, caller_ref.lock(), Combination {
-    subject: None,
-    message: key_ref
+  combine(&mut reactor, caller_ref.clone(), Combination {
+    subject: FromLocals,
+    message: From(key_ref)
   });
 
   assert!(reactor.stagings.shift() == Some((caller_ref, value_ref)));
