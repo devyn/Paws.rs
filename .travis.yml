@@ -1,3 +1,5 @@
+env:
+  - RUST_TEST_TASKS=1
 before_install:
   - sudo add-apt-repository --yes ppa:hansjorg/rust
   - sudo apt-get update -qq
