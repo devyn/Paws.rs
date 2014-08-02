@@ -8,8 +8,6 @@ use nuketype::Thing;
 
 #[test]
 pub fn sym_lookup_miss_and_hit() {
-  "This string prevents a segfault."; // XXX XXX XXX EW
-
   let machine = Machine::new();
 
   let foo_sym = machine.symbol_map.lock().intern("foo");
