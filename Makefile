@@ -56,6 +56,9 @@ ${BUILDDIR}:
 	mkdir -p ${BUILDDIR}
 	mkdir -p ${BUILDDIR}/tmp
 
+TAGS:
+	ctags -f "$@" --options=etc/ctags.rust -R src
+
 -include ${LIBDEPINFO}
 -include ${BINDEPINFO}
 -include ${TESTDEPINFO}
