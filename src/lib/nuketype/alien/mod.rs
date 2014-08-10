@@ -33,12 +33,12 @@ pub struct Alien {
 
   /// Routine-specific (non-generic) data. Often used to store multiple
   /// arguments when implementing the nuclear call-pattern.
-  pub data:    Box<Data+Send+Share>
+  pub data:    Box<Data+Send+Sync>
 }
 
 impl Alien {
   /// Construct an Alien around a given `Routine`.
-  pub fn new(routine: Routine, data: Box<Data+Send+Share>) -> Alien {
+  pub fn new(routine: Routine, data: Box<Data+Send+Sync>) -> Alien {
     Alien {
       routine: routine,
       data:    data
@@ -57,7 +57,7 @@ impl Alien {
     };
 
     Alien::new(call_pattern_alien_routine,
-               call_pattern_data as Box<Data+Send+Share>)
+               call_pattern_data as Box<Data+Send+Sync>)
   }
 
   /// Construct a oneshot Alien which calls the given `OneshotRoutine` for only
@@ -69,7 +69,7 @@ impl Alien {
     };
 
     Alien::new(oneshot_alien_routine,
-               oneshot_data as Box<Data+Send+Share>)
+               oneshot_data as Box<Data+Send+Sync>)
   }
 
   /// Turn the function inside a `NativeReceiver` into an Alien.
@@ -95,7 +95,7 @@ impl Alien {
   pub fn create<T: Tag>(
                 name:    T,
                 routine: Routine,
-                data:    Box<Data+Send+Share>)
+                data:    Box<Data+Send+Sync>)
                 -> ObjectRef {
 
     ObjectRef::store_with_tag(
@@ -186,7 +186,7 @@ impl Clone for Alien {
 /// object, to allow `Alien` to still be cloneable. This is a huge hack.
 pub trait Data: Any {
   /// Clones and boxes into a `Data` trait object.
-  fn clone_to_data(&self) -> Box<Data+Send+Share>;
+  fn clone_to_data(&self) -> Box<Data+Send+Sync>;
 
   /// Gets this Data as an Any reference. Not generally necessary as `AnyRefExt`
   /// is implemented, but it is necessary in order to implement `AnyRefExt` in
@@ -203,9 +203,9 @@ pub trait Data: Any {
   }
 }
 
-impl<T: 'static+Clone+Send+Share> Data for T {
-  fn clone_to_data(&self) -> Box<Data+Send+Share> {
-    box self.clone() as Box<Data+Send+Share>
+impl<T: 'static+Clone+Send+Sync> Data for T {
+  fn clone_to_data(&self) -> Box<Data+Send+Sync> {
+    box self.clone() as Box<Data+Send+Sync>
   }
 }
 

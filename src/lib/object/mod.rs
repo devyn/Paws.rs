@@ -76,20 +76,20 @@ struct ObjectBox {
 }
 
 struct ObjectData {
-  nuketype: Box<Nuketype+Send+Share>,
+  nuketype: Box<Nuketype+Send+Sync>,
   meta:     Meta
 }
 
 impl ObjectRef {
   /// Boxes a `Nuketype` and `Meta`, and returns a reference to that box.
-  pub fn store(nuketype: Box<Nuketype+Send+Share>, meta: Meta) -> ObjectRef {
+  pub fn store(nuketype: Box<Nuketype+Send+Sync>, meta: Meta) -> ObjectRef {
     ObjectRef::make(nuketype, meta, None, None)
   }
 
   /// Boxes a `Nuketype` and `Meta` along with a tag for better debug output.
   /// Affects the result of the `Show` trait.
   pub fn store_with_tag<T: Tag>(
-                        nuketype: Box<Nuketype+Send+Share>,
+                        nuketype: Box<Nuketype+Send+Sync>,
                         meta:     Meta,
                         tag:      T)
                       -> ObjectRef {
@@ -108,7 +108,7 @@ impl ObjectRef {
     ObjectRef::make(symbol, Meta::new(), Some(symbol_ref), None)
   }
 
-  fn make(nuketype:   Box<Nuketype+Send+Share>,
+  fn make(nuketype:   Box<Nuketype+Send+Sync>,
           meta:       Meta,
           symbol_ref: Option<Arc<String>>,
           tag:        Option<Arc<String>>)
