@@ -22,7 +22,7 @@ use paws::nuketype::Execution;
 
 use paws::specification::Suite;
 
-use interact = paws::interact::start;
+use paws::interact::start as interact;
 
 #[start]
 fn start(argc: int, argv: *const *const u8) -> int {
