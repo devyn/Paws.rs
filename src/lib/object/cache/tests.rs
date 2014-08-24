@@ -1,4 +1,4 @@
-use super::*;
+use super::Cache;
 
 use object;
 

@@ -1,4 +1,4 @@
-use super::*;
+use super::{Symbol, SymbolMap};
 
 #[test]
 fn create_symbol_and_retrieve_name() {

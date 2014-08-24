@@ -1,4 +1,4 @@
-use super::*;
+use super::Machine;
 
 #[test]
 fn machine_creates_symbols_with_different_object_identity() {

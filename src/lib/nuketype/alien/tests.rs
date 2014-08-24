@@ -1,4 +1,4 @@
-use super::*;
+use super::Alien;
 
 use object::{ObjectRef, Params, Meta};
 

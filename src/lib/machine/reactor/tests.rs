@@ -1,4 +1,5 @@
-use super::*;
+use super::{MockReactor, SerialReactor, ReactorPool};
+use super::{Reactor, Combination, From, FromLocals, combine};
 
 use script::*;
 

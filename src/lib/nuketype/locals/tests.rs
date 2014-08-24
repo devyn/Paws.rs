@@ -1,4 +1,4 @@
-use super::*;
+use super::{Locals, locals_receiver};
 
 use object::Params;
 
